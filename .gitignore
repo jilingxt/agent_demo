@@ -1,0 +1,27 @@
+# 虚拟环境
+.conda/
+venv/
+env/
+
+# API 密钥
+config/api_keys.toml
+
+# 证据材料（可能含敏感数据）
+evidence_vault/
+
+# 运行记录
+workflow-runs/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo

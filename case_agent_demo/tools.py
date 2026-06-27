@@ -1,0 +1,130 @@
+from __future__ import annotations
+
+import json
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
+
+from langchain_core.runnables import RunnableLambda
+
+from case_agent_demo.models import EvidenceGraph, LegalMatch
+
+
+DEFAULT_LEGAL_LIBRARY = Path("legal_library") / "laws.jsonl"
+
+
+@dataclass
+class LegalRetrievalTool:
+    """Legal retrieval tool backed by a static JSONL law library."""
+
+    name: str = "legal_retrieval_tool"
+    library_path: str | Path | None = DEFAULT_LEGAL_LIBRARY
+    max_matches: int = 5
+
+    def __post_init__(self) -> None:
+        self.library_path = Path(self.library_path) if self.library_path else None
+        self.runnable = RunnableLambda(self.retrieve)
+
+    def retrieve(self, payload: dict[str, Any]) -> list[LegalMatch]:
+        case_type = payload.get("confirmed_case_type") or payload.get("case_type") or "unknown_case_type"
+        graph: EvidenceGraph | None = payload.get("evidence_graph") or payload.get("case_graph")
+        behaviors = payload.get("behaviors")
+        if behaviors is None and graph is not None:
+            behaviors = [fact.behavior for fact in graph.facts[:3]]
+        behavior_text = "；".join(str(item) for item in behaviors or [])
+        purpose = payload.get("purpose", "legal_basis_lookup")
+
+        matches = self._retrieve_from_static_library(case_type, behavior_text, purpose)
+        if matches:
+            return matches
+        return [self._demo_match(case_type, behavior_text, purpose)]
+
+    def _retrieve_from_static_library(self, case_type: str, behavior_text: str, purpose: str) -> list[LegalMatch]:
+        if self.library_path is None or not self.library_path.exists():
+            return []
+
+        scored: list[tuple[int, int, dict[str, Any]]] = []
+        query_text = f"{case_type} {behavior_text}".lower()
+        for index, law in enumerate(_read_jsonl(self.library_path)):
+            score = _score_law(law, case_type, query_text)
+            if score > 0:
+                scored.append((score, -index, law))
+
+        scored.sort(reverse=True)
+        return [
+            _law_to_match(law, case_type, behavior_text, purpose)
+            for _, _, law in scored[: self.max_matches]
+        ]
+
+    def _demo_match(self, case_type: str, behavior_text: str, purpose: str) -> LegalMatch:
+        return LegalMatch(
+            law_id="L-DEMO-1",
+            law_name="中华人民共和国刑法",
+            article="第二百六十四条（demo 预置）",
+            legal_element="以非法占有为目的，秘密窃取公私财物等构成要件需结合证据审查。",
+            matched_behavior=f"{case_type} / {behavior_text}",
+            source=f"legal_retrieval_tool:{purpose}:demo_preloaded_rules",
+        )
+
+
+@dataclass
+class RagLegalAgent:
+    """Legacy wrapper kept for old imports; new code should use LegalRetrievalTool."""
+
+    name: str = "rag_legal_agent"
+    legal_tool: LegalRetrievalTool | None = None
+
+    def __post_init__(self) -> None:
+        if self.legal_tool is None:
+            self.legal_tool = LegalRetrievalTool()
+        self.runnable = RunnableLambda(self.retrieve)
+
+    def retrieve(self, payload: dict[str, Any]) -> list[LegalMatch]:
+        return self.legal_tool.retrieve(payload)
+
+
+def _read_jsonl(path: Path) -> list[dict[str, Any]]:
+    laws: list[dict[str, Any]] = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        laws.append(json.loads(line))
+    return laws
+
+
+def _score_law(law: dict[str, Any], case_type: str, query_text: str) -> int:
+    score = 0
+    case_types = [str(item) for item in law.get("case_types", [])]
+    if any(item and item in case_type for item in case_types):
+        score += 4
+    for keyword in law.get("keywords", []):
+        if str(keyword).lower() in query_text:
+            score += 2
+    for element in law.get("legal_elements", []):
+        if str(element).lower() in query_text:
+            score += 1
+    law_text = str(law.get("text", "")).lower()
+    if law_text and any(token in law_text for token in query_text.split()):
+        score += 1
+    return score
+
+
+def _law_to_match(law: dict[str, Any], case_type: str, behavior_text: str, purpose: str) -> LegalMatch:
+    legal_elements = law.get("legal_elements") or []
+    if isinstance(legal_elements, list) and legal_elements:
+        legal_element = "；".join(str(item) for item in legal_elements)
+    else:
+        legal_element = str(law.get("text", ""))
+
+    source = str(law.get("source", "static_law_library"))
+    law_id = str(law.get("law_id", "unknown_law"))
+    return LegalMatch(
+        law_id=law_id,
+        law_name=str(law.get("law_name", "")),
+        article=str(law.get("article", "")),
+        legal_element=legal_element,
+        matched_behavior=f"{case_type} / {behavior_text}",
+        source=f"legal_retrieval_tool:{purpose}:{source}:{law_id}",
+        effective_status=str(law.get("effective_status", "effective")),
+    )
