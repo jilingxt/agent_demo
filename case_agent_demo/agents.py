@@ -17,7 +17,6 @@ from case_agent_demo.models import (
     Material,
     ReviewResult,
 )
-from case_agent_demo.prompt_config import PromptLoader
 from case_agent_demo.tools import LegalRetrievalTool, RagLegalAgent
 from case_agent_demo.vision_tools import ImageEvidenceDescription
 
@@ -48,11 +47,8 @@ def _image_description_content(description: ImageEvidenceDescription) -> str:
 @dataclass
 class PlanningAgent:
     name: str = "planning_agent"
-    prompt: str = ""
 
     def __post_init__(self) -> None:
-        if not self.prompt:
-            self.prompt = PromptLoader().load("planning_agent")
         self.runnable = RunnableLambda(self._suggest)
 
     def suggest(self, materials: list[Material]) -> CaseTypeSuggestion:
@@ -76,11 +72,8 @@ class PlanningAgent:
 @dataclass
 class TextAgent:
     name: str = "text_agent"
-    prompt: str = ""
 
     def __post_init__(self) -> None:
-        if not self.prompt:
-            self.prompt = PromptLoader().load("text_agent")
         self.runnable = RunnableLambda(self.extract)
 
     def extract(self, material: Material) -> list[Fact]:
@@ -103,12 +96,9 @@ class TextAgent:
 @dataclass
 class PicAgent:
     name: str = "pic_agent"
-    prompt: str = ""
     vision_tool: Any | None = None
 
     def __post_init__(self) -> None:
-        if not self.prompt:
-            self.prompt = PromptLoader().load("pic_agent_qwen")
         self.runnable = RunnableLambda(self.extract)
 
     def extract(self, material: Material) -> list[Fact]:
@@ -135,13 +125,10 @@ class PicAgent:
 @dataclass
 class ReportImageAgent:
     name: str = "report_image_agent"
-    prompt: str = ""
     legal_tool: LegalRetrievalTool | None = None
     vision_tool: Any | None = None
 
     def __post_init__(self) -> None:
-        if not self.prompt:
-            self.prompt = PromptLoader().load("report_image_agent")
         self.runnable = RunnableLambda(self.extract)
 
     def extract(self, material: Material) -> list[Fact]:
@@ -167,12 +154,9 @@ class ReportImageAgent:
 @dataclass
 class EvidenceGraphAgent:
     name: str = "case_graph_agent"
-    prompt: str = ""
     legal_tool: LegalRetrievalTool | None = None
 
     def __post_init__(self) -> None:
-        if not self.prompt:
-            self.prompt = PromptLoader().load("evidence_graph_agent")
         self.runnable = RunnableLambda(lambda facts: CaseGraph(facts=list(facts)))
 
     def build(self, facts: list[Fact]) -> CaseGraph:
@@ -185,11 +169,8 @@ CaseGraphAgent = EvidenceGraphAgent
 @dataclass
 class ConflictAgent:
     name: str = "conflict_agent"
-    prompt: str = ""
 
     def __post_init__(self) -> None:
-        if not self.prompt:
-            self.prompt = PromptLoader().load("conflict_agent")
         self.runnable = RunnableLambda(self.detect)
 
     def detect(self, graph: EvidenceGraph) -> list[Conflict]:
@@ -239,12 +220,9 @@ class _LegacyRagLegalAgent:
 @dataclass
 class ReasoningAgent:
     name: str = "reasoning_agent"
-    prompt: str = ""
     legal_tool: LegalRetrievalTool | None = None
 
     def __post_init__(self) -> None:
-        if not self.prompt:
-            self.prompt = PromptLoader().load("reasoning_agent")
         self.runnable = RunnableLambda(self.reason)
 
     def retrieve_legal_matches(self, payload: dict[str, Any]) -> list[LegalMatch]:
@@ -287,12 +265,9 @@ class ReasoningAgent:
 @dataclass
 class JudgeAgent:
     name: str = "judge_agent"
-    prompt: str = ""
     legal_tool: LegalRetrievalTool | None = None
 
     def __post_init__(self) -> None:
-        if not self.prompt:
-            self.prompt = PromptLoader().load("judge_agent")
         self.runnable = RunnableLambda(self.challenge)
 
     def challenge(self, payload: dict[str, Any]) -> list[Challenge]:
@@ -339,12 +314,9 @@ class JudgeAgent:
 @dataclass
 class ReviewAgent:
     name: str = "review_agent"
-    prompt: str = ""
     legal_tool: LegalRetrievalTool | None = None
 
     def __post_init__(self) -> None:
-        if not self.prompt:
-            self.prompt = PromptLoader().load("review_agent")
         self.runnable = RunnableLambda(lambda payload: self.review(**payload))
 
     def review(
