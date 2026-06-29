@@ -15,8 +15,11 @@ from case_agent_demo.models import (
     Fact,
     LegalMatch,
     Material,
+    MaterialType,
     ReviewResult,
 )
+from case_agent_demo.config import ModelProfile, ModelProfiles
+from case_agent_demo.material_plan import MaterialPlan
 from case_agent_demo.tools import LegalRetrievalTool, RagLegalAgent
 from case_agent_demo.vision_tools import ImageEvidenceDescription
 
@@ -44,9 +47,89 @@ def _should_use_vision_tool(material: Material) -> bool:
 def _image_description_content(description: ImageEvidenceDescription) -> str:
     return description.to_material_content()
 
+
+def _statement_user_input(material: Material) -> str:
+    return (
+        f"material_id: {material.material_id}\n"
+        f"material_type: {material.material_type.value}\n"
+        f"source_path: {material.source_path}\n\n"
+        f"{material.content}"
+    )
+
+
+def _materials_user_input(materials: list[Material]) -> str:
+    return "\n\n--- material ---\n\n".join(
+        (
+            f"material_id: {material.material_id}\n"
+            f"material_type: {material.material_type.value}\n"
+            f"source_path: {material.source_path}\n\n"
+            f"{material.content}"
+        )
+        for material in materials
+    )
+
+
+def _case_type_suggestion_from_json(data: dict[str, Any]) -> CaseTypeSuggestion:
+    suggestions = data.get("suggested_case_types", [])
+    if not isinstance(suggestions, list):
+        suggestions = []
+    return CaseTypeSuggestion(
+        suggested_case_types=[item for item in suggestions if isinstance(item, dict)],
+        requires_human_confirmation=bool(data.get("requires_human_confirmation", True)),
+    )
+
+
+def _planning_fallback(materials: list[Material]) -> CaseTypeSuggestion:
+    return PlanningAgent()._suggest(materials)
+
+
+def _reasoning_user_input(payload: dict[str, Any]) -> str:
+    graph: EvidenceGraph = payload["evidence_graph"]
+    laws: list[LegalMatch] = payload["legal_matches"]
+    conflicts: list[Conflict] = payload["conflicts"]
+    fact_lines = "\n".join(f"{fact.fact_id}|{fact.source_material_id}|{fact.person}|{fact.behavior}" for fact in graph.facts)
+    law_lines = "\n".join(f"{law.law_id}|{law.law_name}|{law.article}|{law.legal_element}" for law in laws)
+    conflict_lines = "\n".join(f"{item.conflict_id}|{item.conflict_type}|{item.source_a}|{item.source_b}|{item.severity}" for item in conflicts)
+    return (
+        f"confirmed_case_type: {payload['confirmed_case_type']}\n\n"
+        f"case_graph_facts:\n{fact_lines}\n\n"
+        f"legal_matches:\n{law_lines}\n\n"
+        f"conflicts:\n{conflict_lines}"
+    )
+
+
+def _reasoning_fallback(payload: dict[str, Any]) -> str:
+    return ReasoningAgent().reason(payload)
+
+
+def _facts_from_json(data: dict[str, Any], material: Material) -> list[Fact]:
+    raw_facts = data.get("facts", [])
+    if not isinstance(raw_facts, list):
+        return []
+    facts: list[Fact] = []
+    for index, item in enumerate(raw_facts, start=1):
+        if not isinstance(item, dict):
+            continue
+        facts.append(
+            Fact(
+                fact_id=str(item.get("fact_id") or f"F-{material.material_id}-TEXT-{index}"),
+                source_material_id=material.material_id,
+                source_type=material.material_type.value,
+                person=str(item.get("person", "")),
+                behavior=str(item.get("behavior", "")),
+                time=str(item.get("time", "")),
+                location=str(item.get("location", "")),
+                object=str(item.get("object", "")),
+                confidence=float(item.get("confidence", 0.8) or 0.8),
+            )
+        )
+    return facts or TextAgent()._extract_fallback(material)
+
 @dataclass
 class PlanningAgent:
     name: str = "planning_agent"
+    runtime: Any | None = None
+    profile: ModelProfile = ModelProfiles().planning
 
     def __post_init__(self) -> None:
         self.runnable = RunnableLambda(self._suggest)
@@ -54,7 +137,18 @@ class PlanningAgent:
     def suggest(self, materials: list[Material]) -> CaseTypeSuggestion:
         return self.runnable.invoke(materials)
 
+    def plan_materials(self, materials: list[Material]) -> MaterialPlan:
+        return MaterialPlan.from_materials(materials)
+
     def _suggest(self, materials: list[Material]) -> CaseTypeSuggestion:
+        if self.runtime is not None:
+            return self.runtime.run_json(
+                "planning_agent",
+                self.profile,
+                _materials_user_input(materials),
+                fallback=lambda: _planning_fallback(materials),
+                parser=_case_type_suggestion_from_json,
+            )
         joined = "\n".join(item.content for item in materials)
         case_type = "盗窃类案件" if any(word in joined for word in ("门锁", "盗", "占有")) else "待人工判断案件"
         return CaseTypeSuggestion(
@@ -72,11 +166,24 @@ class PlanningAgent:
 @dataclass
 class TextAgent:
     name: str = "text_agent"
+    runtime: Any | None = None
+    profile: ModelProfile = ModelProfiles().text
 
     def __post_init__(self) -> None:
         self.runnable = RunnableLambda(self.extract)
 
     def extract(self, material: Material) -> list[Fact]:
+        if self.runtime is not None:
+            return self.runtime.run_json(
+                "text_agent",
+                self.profile,
+                _statement_user_input(material),
+                fallback=lambda: self._extract_fallback(material),
+                parser=lambda data: _facts_from_json(data, material),
+            )
+        return self._extract_fallback(material)
+
+    def _extract_fallback(self, material: Material) -> list[Fact]:
         person = _find_person(material.content)
         behavior = material.content.strip()
         return [
@@ -108,6 +215,20 @@ class PicAgent:
             description = self.vision_tool.describe(material)
             content = _image_description_content(description)
             confidence = description.confidence
+        return self._fact_from_content(material, content, confidence)
+
+    def extract_group(self, group_id: str, image_paths: list[str]) -> list[Fact]:
+        if self.vision_tool is None:
+            content = f"Image group pending Qwen vision: {group_id}"
+            confidence = 0.0
+        else:
+            description = self.vision_tool.describe_group(group_id, image_paths)
+            content = _image_description_content(description)
+            confidence = description.confidence
+        material = Material(group_id, MaterialType.EVIDENCE_IMAGE, content, source_path=";".join(image_paths))
+        return self._fact_from_content(material, content, confidence)
+
+    def _fact_from_content(self, material: Material, content: str, confidence: float) -> list[Fact]:
         return [
             Fact(
                 fact_id=f"F-{material.material_id}-PIC",
@@ -150,6 +271,29 @@ class ReportImageAgent:
                 confidence=confidence,
             )
         ]
+
+    def extract_group(self, group_id: str, image_paths: list[str]) -> list[Fact]:
+        if self.vision_tool is None:
+            content = f"Report image group pending Qwen vision: {group_id}"
+        else:
+            description = self.vision_tool.describe_group(group_id, image_paths)
+            content = _image_description_content(description)
+        material = Material(group_id, MaterialType.REPORT_IMAGE, content, source_path=";".join(image_paths))
+        report_type = "report_image"
+        confidence = 0.93 if any(word in content for word in ("绛剧珷娓呮櫚", "缁撹", "鎶ュ憡")) else 0.78
+        return [
+            Fact(
+                fact_id=f"F-{material.material_id}-REPORT",
+                source_material_id=material.material_id,
+                source_type=material.material_type.value,
+                person=_find_person(content),
+                behavior=f"{report_type}: {content.strip()}",
+                time=_find_time(content),
+                location="鐜板満闄勮繎" if "鐜板満闄勮繎" in content else "",
+                confidence=confidence,
+            )
+        ]
+
 
 @dataclass
 class EvidenceGraphAgent:
@@ -220,6 +364,8 @@ class _LegacyRagLegalAgent:
 @dataclass
 class ReasoningAgent:
     name: str = "reasoning_agent"
+    runtime: Any | None = None
+    profile: ModelProfile = ModelProfiles().reasoning
     legal_tool: LegalRetrievalTool | None = None
 
     def __post_init__(self) -> None:
@@ -231,6 +377,14 @@ class ReasoningAgent:
         return self.legal_tool.retrieve({**payload, "purpose": "reasoning_legal_basis"})
 
     def reason(self, payload: dict[str, Any]) -> str:
+        if self.runtime is not None:
+            return self.runtime.run_json(
+                "reasoning_agent",
+                self.profile,
+                _reasoning_user_input(payload),
+                fallback=lambda: _reasoning_fallback(payload),
+                parser=lambda data: str(data.get("report", "")) or _reasoning_fallback(payload),
+            )
         graph: EvidenceGraph = payload["evidence_graph"]
         laws: list[LegalMatch] = payload["legal_matches"]
         conflicts: list[Conflict] = payload["conflicts"]

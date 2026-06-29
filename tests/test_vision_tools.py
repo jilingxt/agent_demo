@@ -25,6 +25,13 @@ class FakeQwenClient:
         self.payloads.append(payload)
         return payload
 
+    def build_vision_group_payload(self, profile, prompt, image_urls):
+        content = [{"type": "text", "text": prompt}]
+        content.extend({"type": "image_url", "image_url": {"url": image_url}} for image_url in image_urls)
+        payload = {"model": profile.model_name, "messages": [{"content": content}]}
+        self.payloads.append(payload)
+        return payload
+
     def chat_completions(self, payload):
         return {"choices": [{"message": {"content": self.content}}]}
 
@@ -62,6 +69,31 @@ class VisionToolsTests(unittest.TestCase):
         description = ImageEvidenceDescription(pic="看不清", text="", confidence=0.5)
 
         self.assertTrue(description.needs_human_input)
+
+
+    def test_qwen_image_evidence_tool_describes_each_image_group_in_isolated_payload(self):
+        client = FakeQwenClient('{"pic":"group description","text":"group text","confidence":0.95}')
+        profile = ModelProfile("vision", "qwen", "qwen-vl-plus", 0.0, "vision")
+        tool = QwenImageEvidenceTool(client=client, profile=profile, prompt="json only")
+        with tempfile.TemporaryDirectory() as tmp:
+            group_a = Path(tmp) / "group_a"
+            group_b = Path(tmp) / "group_b"
+            group_a.mkdir()
+            group_b.mkdir()
+            a1 = group_a / "1.jpg"
+            a2 = group_a / "2.jpg"
+            b1 = group_b / "1.jpg"
+            for path in (a1, a2, b1):
+                path.write_bytes(path.name.encode("utf-8"))
+
+            description = tool.describe_group("group_a", [str(a1), str(a2)])
+
+        self.assertEqual(description.pic, "group description")
+        content = client.payloads[0]["messages"][0]["content"]
+        image_urls = [item["image_url"]["url"] for item in content if item["type"] == "image_url"]
+        self.assertEqual(len(image_urls), 2)
+        self.assertTrue(all(url.startswith("data:image/jpeg;base64,") for url in image_urls))
+        self.assertNotIn(str(b1), str(client.payloads[0]))
 
 
 if __name__ == "__main__":

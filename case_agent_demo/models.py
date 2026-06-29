@@ -98,3 +98,4 @@ class WorkflowResult:
     report: str
     review: ReviewResult
     evidence_graph: CaseGraph | None = None
+    material_plan: object | None = None

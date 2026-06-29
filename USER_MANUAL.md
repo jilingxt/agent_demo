@@ -1,5 +1,28 @@
 # 用户手册
 
+## 9. 上下文隔离与图片分组
+
+本 demo 在正式分析前会先由 `PlanningAgent` 盘点材料数量，包括笔录数量、证据图片组数量和报告图片组数量。
+
+笔录材料按“每份笔录一个独立上下文”处理。`TextAgent` 每次只接收一份笔录的内容和元数据，不会把其他笔录、图片描述或历史提取结果放入同一次提取请求。
+
+图片材料按文件夹分组。同一件事、同一次辨认、同一份报告的多张图片，应放在同一个子文件夹中：
+
+```text
+evidence_vault/
+  identification_images/
+    group_001/
+      1.jpg
+      2.jpg
+    group_002/
+      1.jpg
+  report_images/
+    report_001/
+      page1.jpg
+      page2.jpg
+```
+
+同一个子文件夹会作为一次 Qwen 视觉上下文处理；不同文件夹不会互相看到。直接放在 `identification_images/` 或 `report_images/` 下的单张图片，会被兼容为一个单图组。
 ## 1. 快速开始
 
 进入项目：

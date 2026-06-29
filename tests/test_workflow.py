@@ -21,6 +21,47 @@ class CaseWorkflowTests(unittest.TestCase):
         with self.assertRaises(HumanConfirmationRequired):
             workflow.run(materials)
 
+    def test_confirmed_run_records_material_plan_before_extraction(self):
+        workflow = CaseWorkflow.demo()
+        materials = [
+            Material("S1", MaterialType.STATEMENT, "张三称20时在家。", "vault/statements/S1.txt"),
+            Material("S2", MaterialType.STATEMENT, "李四称20时在现场。", "vault/statements/S2.txt"),
+            Material("P1", MaterialType.EVIDENCE_IMAGE, "needs qwen", "vault/identification_images/group_a/1.jpg"),
+            Material("P2", MaterialType.EVIDENCE_IMAGE, "needs qwen", "vault/identification_images/group_a/2.jpg"),
+        ]
+
+        result = workflow.run(materials, confirmed_case_type="盗窃类案件")
+
+        self.assertIn("planning_agent_material_plan", result.executed_agents)
+        self.assertEqual(result.material_plan.statement_count, 2)
+        self.assertEqual(result.material_plan.evidence_image_group_count, 1)
+
+    def test_workflow_dispatches_image_folder_as_one_group_when_vision_tool_is_available(self):
+        class RecordingVisionTool:
+            def __init__(self):
+                self.group_calls = []
+
+            def describe_group(self, group_id, image_paths):
+                self.group_calls.append((group_id, list(image_paths)))
+                from case_agent_demo.vision_tools import ImageEvidenceDescription
+
+                return ImageEvidenceDescription(pic=f"{group_id} image description", text="", confidence=0.95)
+
+        workflow = CaseWorkflow.demo()
+        vision_tool = RecordingVisionTool()
+        workflow.pic_agent.vision_tool = vision_tool
+        materials = [
+            Material("S1", MaterialType.STATEMENT, "张三称20时在家。", "vault/statements/S1.txt"),
+            Material("P1", MaterialType.EVIDENCE_IMAGE, "needs qwen", "vault/identification_images/group_a/1.jpg"),
+            Material("P2", MaterialType.EVIDENCE_IMAGE, "needs qwen", "vault/identification_images/group_a/2.jpg"),
+        ]
+
+        result = workflow.run(materials, confirmed_case_type="盗窃类案件")
+
+        self.assertEqual(vision_tool.group_calls, [("group_a", ["vault/identification_images/group_a/1.jpg", "vault/identification_images/group_a/2.jpg"])])
+        self.assertIn("pic_agent_group", result.executed_agents)
+        self.assertNotIn("pic_agent", result.executed_agents)
+
     def test_confirmed_case_type_runs_report_image_agent_and_builds_report(self):
         workflow = CaseWorkflow.demo()
         materials = [

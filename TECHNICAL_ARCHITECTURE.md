@@ -1,5 +1,17 @@
 # 项目技术架构
 
+## 7. Agent Runtime 与上下文隔离
+
+本分支新增 `AgentRuntime`，用于统一处理 prompt 加载、OpenAI-compatible 调用、JSON 解析和 fallback。文本类 agent 可以选择注入 runtime；未注入 runtime、API 不可用或返回内容无法解析时，系统回退到现有规则逻辑，保证 demo 可离线运行。
+
+`PlanningAgent` 在执行分析前生成 `MaterialPlan`。该计划记录 statement task、evidence image group task、report image group task，作为后续调度依据。
+
+上下文隔离规则：
+
+- `TextAgent` 每次只处理一个 statement material；
+- `PicAgent` 在 Qwen 可用时按图片文件夹调用 `describe_group`；
+- `ReportImageAgent` 在 Qwen 可用时按报告图片文件夹调用 `describe_group`；
+- `ReasoningAgent` 的 runtime 输入只来自 Case Graph、Conflict 和 LegalMatch，不接收原始材料全集。
 ## 1. 当前定位
 
 本项目是 Python + LangChain Core 搭建的多 Agent 案件证据分析 demo。它面向真实 LLM 接入，支持 DeepSeek 文本模型、Qwen 视觉模型、证据文件夹、静态法律库、Case Graph、Conflict、Judge challenge 和 Review。

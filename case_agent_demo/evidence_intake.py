@@ -25,6 +25,7 @@ class EvidenceRecord:
     extracted_path: str
     extraction_status: str
     requires_external_vision: bool
+    group_id: str = ""
 
 
 def ensure_evidence_vault(root: str | Path) -> Path:
@@ -51,12 +52,12 @@ class EvidenceIntake:
             materials.append(material)
             records.append(record)
 
-        for path in self._iter_files(self.root / "report_images", IMAGE_EXTENSIONS):
+        for path in self._iter_image_files(self.root / "report_images"):
             material, record = self._load_image(path, MaterialType.REPORT_IMAGE, "R")
             materials.append(material)
             records.append(record)
 
-        for path in self._iter_files(self.root / "identification_images", IMAGE_EXTENSIONS):
+        for path in self._iter_image_files(self.root / "identification_images"):
             material, record = self._load_image(path, MaterialType.EVIDENCE_IMAGE, "P")
             materials.append(material)
             records.append(record)
@@ -68,6 +69,17 @@ class EvidenceIntake:
         return sorted(
             path for path in directory.iterdir() if path.is_file() and path.suffix.lower() in extensions
         )
+
+    def _iter_image_files(self, directory: Path) -> Iterable[Path]:
+        loose_files = [
+            path for path in directory.iterdir() if path.is_file() and path.suffix.lower() in IMAGE_EXTENSIONS
+        ]
+        grouped_files: list[Path] = []
+        for child in sorted(path for path in directory.iterdir() if path.is_dir()):
+            grouped_files.extend(
+                sorted(path for path in child.iterdir() if path.is_file() and path.suffix.lower() in IMAGE_EXTENSIONS)
+            )
+        return [*grouped_files, *sorted(loose_files)]
 
     def _load_statement(self, path: Path) -> tuple[Material, EvidenceRecord]:
         material_id = f"S-{_safe_stem(path)}"
@@ -103,7 +115,9 @@ class EvidenceIntake:
     def _load_image(
         self, path: Path, material_type: MaterialType, prefix: str
     ) -> tuple[Material, EvidenceRecord]:
-        material_id = f"{prefix}-{_safe_stem(path)}"
+        group_id = self._image_group_id(path, material_type)
+        material_stem = f"{group_id}-{path.stem}" if group_id != path.stem else path.stem
+        material_id = f"{prefix}-{_safe_stem(Path(material_stem))}"
         extracted = self._extracted_text(path)
         if extracted is None:
             content = f"待外部 Qwen 识别：{path}"
@@ -122,6 +136,7 @@ class EvidenceIntake:
                 extracted_path=extracted_path,
                 extraction_status=status,
                 requires_external_vision=True,
+                group_id=group_id,
             ),
         )
 
@@ -134,6 +149,13 @@ class EvidenceIntake:
             return None
         text = _clean_text(extracted_path.read_text(encoding="utf-8"))
         return text or None
+
+    def _image_group_id(self, path: Path, material_type: MaterialType) -> str:
+        root_dir = self.root / ("report_images" if material_type == MaterialType.REPORT_IMAGE else "identification_images")
+        parent = path.parent
+        if parent == root_dir:
+            return _safe_stem(path)
+        return _safe_stem(parent)
 
 
 def _safe_stem(path: Path) -> str:

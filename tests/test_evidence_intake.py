@@ -75,6 +75,25 @@ class EvidenceIntakeTests(unittest.TestCase):
             self.assertIn("待外部 Qwen 识别", materials[0].content)
             self.assertTrue(materials[0].source_path.endswith("P2.png"))
 
+    def test_groups_images_by_subfolder_and_keeps_loose_images_as_single_groups(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "evidence_vault"
+            ensure_evidence_vault(root)
+            group = root / "identification_images" / "group_a"
+            group.mkdir()
+            (group / "1.jpg").write_bytes(b"not-a-real-image")
+            (group / "2.jpg").write_bytes(b"not-a-real-image")
+            (root / "identification_images" / "single.jpg").write_bytes(b"not-a-real-image")
+
+            materials = EvidenceIntake(root).load_materials()
+            manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
+
+            self.assertEqual([item.material_id for item in materials], ["P-group_a-1", "P-group_a-2", "P-single"])
+            records_by_id = {record["material_id"]: record for record in manifest["records"]}
+            self.assertEqual(records_by_id["P-group_a-1"]["group_id"], "group_a")
+            self.assertEqual(records_by_id["P-group_a-2"]["group_id"], "group_a")
+            self.assertEqual(records_by_id["P-single"]["group_id"], "single")
+
     def test_strips_utf8_bom_from_text_sources(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp) / "evidence_vault"

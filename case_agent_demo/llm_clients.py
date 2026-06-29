@@ -124,3 +124,12 @@ class QwenVisionClient(OpenAICompatibleClient):
                 }
             ],
         }
+
+    def build_vision_group_payload(self, profile: ModelProfile, prompt: str, image_urls: list[str]) -> dict[str, Any]:
+        content: list[dict[str, Any]] = [{"type": "text", "text": prompt}]
+        content.extend({"type": "image_url", "image_url": {"url": image_url}} for image_url in image_urls)
+        return {
+            "model": profile.model_name,
+            "temperature": profile.temperature,
+            "messages": [{"role": "user", "content": content}],
+        }

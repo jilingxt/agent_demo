@@ -1,5 +1,19 @@
 # 流程说明
 
+## 6. 重构后的调度顺序
+
+当前 experiment 分支采用以下顺序：
+
+1. `EvidenceIntake` 扫描证据目录。
+2. `PlanningAgent` 先生成材料盘点 `MaterialPlan`。
+3. 用户确认案件类型后才继续执行。
+4. `TextAgent` 按每份笔录独立提取事实。
+5. `PicAgent` 按证据图片文件夹独立调用 Qwen 视觉。
+6. `ReportImageAgent` 按报告图片文件夹独立调用 Qwen 视觉。
+7. `EvidenceGraphAgent` 合并结构化 facts。
+8. `ConflictAgent` 独立检测冲突。
+9. `LegalRetrievalTool` 返回静态法律依据。
+10. `ReasoningAgent`、`JudgeAgent`、`ReviewAgent` 完成报告、质询和边界复核。
 ## 1. 总体流程
 
 ```mermaid

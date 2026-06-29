@@ -62,13 +62,32 @@ class CaseWorkflow:
         if not confirmed_case_type:
             raise HumanConfirmationRequired("人工确认案件定性后，才能开始 agent 规划和执行。")
 
+        material_plan = self.planning_agent.plan_materials(materials)
         facts: list[Fact] = []
-        executed_agents = ["planning_agent"]
+        executed_agents = ["planning_agent", "planning_agent_material_plan"]
+        materials_by_id = {material.material_id: material for material in materials}
+        processed_image_ids: set[str] = set()
         for material in materials:
             if material.material_type == MaterialType.STATEMENT:
                 facts.extend(self.text_agent.runnable.invoke(material))
                 executed_agents.append("text_agent")
-            elif material.material_type == MaterialType.EVIDENCE_IMAGE:
+
+        for task in material_plan.evidence_image_tasks:
+            if self.pic_agent.vision_tool is not None and _task_has_source_paths(task):
+                facts.extend(self.pic_agent.extract_group(task.group_id, task.source_paths))
+                processed_image_ids.update(task.material_ids)
+                executed_agents.append("pic_agent_group")
+
+        for task in material_plan.report_image_tasks:
+            if self.report_image_agent.vision_tool is not None and _task_has_source_paths(task):
+                facts.extend(self.report_image_agent.extract_group(task.group_id, task.source_paths))
+                processed_image_ids.update(task.material_ids)
+                executed_agents.append("report_image_agent_group")
+
+        for material in materials:
+            if material.material_id in processed_image_ids:
+                continue
+            if material.material_type == MaterialType.EVIDENCE_IMAGE:
                 facts.extend(self.pic_agent.runnable.invoke(material))
                 executed_agents.append("pic_agent")
             elif material.material_type == MaterialType.REPORT_IMAGE:
@@ -131,4 +150,10 @@ class CaseWorkflow:
             report=final_report,
             review=review,
             evidence_graph=case_graph,
+            material_plan=material_plan,
         )
+
+
+def _task_has_source_paths(task: object) -> bool:
+    source_paths = getattr(task, "source_paths", [])
+    return bool(source_paths) and all(str(path).strip() for path in source_paths)

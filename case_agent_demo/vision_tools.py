@@ -64,6 +64,17 @@ class QwenImageEvidenceTool:
         response = self.client.chat_completions(payload)
         return parse_qwen_image_description(response, min_confidence=self.min_confidence)
 
+    def describe_group(self, group_id: str, image_paths: list[str]) -> ImageEvidenceDescription:
+        if not image_paths:
+            raise ValueError(f"Image group {group_id} has no image paths for Qwen vision")
+        image_urls = [
+            image_path if _is_remote_url(image_path) or image_path.startswith("data:") else local_image_to_data_url(image_path)
+            for image_path in image_paths
+        ]
+        payload = self.client.build_vision_group_payload(self.profile, self.prompt, image_urls)
+        response = self.client.chat_completions(payload)
+        return parse_qwen_image_description(response, min_confidence=self.min_confidence)
+
 
 def local_image_to_data_url(path: str | Path) -> str:
     image_path = Path(path)
