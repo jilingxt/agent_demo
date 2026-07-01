@@ -50,3 +50,7 @@ config/prompts/
 - [用户手册](USER_MANUAL.md)
 - [技术架构](TECHNICAL_ARCHITECTURE.md)
 - [流程说明](WORKFLOW.md)
+
+## 研判报告格式
+
+报告类材料放入 `evidence_vault/report_images/`。该目录支持图片、Word 和 PDF：图片默认调用 Qwen 视觉模型，`.docx` 直接读取文本，`.pdf` 优先读取文本层；扫描版 PDF 请在 `evidence_vault/extracted/` 放入同名 `.txt`。

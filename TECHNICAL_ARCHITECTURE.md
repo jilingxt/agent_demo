@@ -92,3 +92,13 @@ flowchart TD
 - Review 拦截最终性法律判断；
 - API key 只放在 `config/api_keys.toml`；
 - Prompt 放在 `config/prompts/`，不硬编码在 Agent 中。
+
+## 报告材料接入
+
+`evidence_vault/report_images/` 是报告类材料入口，不再只表示图片目录：
+
+- `.jpg` / `.jpeg` / `.png`：进入 `ReportImageAgent`，通过 Qwen 视觉模型生成图片描述和文字识别结果。
+- `.docx`：由证据导入层直接提取 Word 文本，生成报告类 `Material` 和 `EvidenceRecord`。
+- `.pdf`：优先提取 PDF 文本层；扫描版或不可提取文本的 PDF 使用 `evidence_vault/extracted/<同名>.txt` 作为人工文本覆盖。
+
+系统不在本地运行 OCR。图片理解交给 Qwen API，文档文本只读取可解析文本层或人工提供的同名文本。

@@ -15,6 +15,7 @@ from case_agent_demo.models import Material, MaterialType
 VAULT_SUBDIRS = ("statements", "report_images", "identification_images", "extracted")
 STATEMENT_EXTENSIONS = {".txt", ".docx", ".pdf"}
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png"}
+REPORT_TEXT_EXTENSIONS = {".txt", ".docx", ".pdf"}
 
 
 @dataclass(frozen=True)
@@ -54,6 +55,11 @@ class EvidenceIntake:
 
         for path in self._iter_image_files(self.root / "report_images"):
             material, record = self._load_image(path, MaterialType.REPORT_IMAGE, "R")
+            materials.append(material)
+            records.append(record)
+
+        for path in self._iter_files(self.root / "report_images", REPORT_TEXT_EXTENSIONS):
+            material, record = self._load_report_document(path)
             materials.append(material)
             records.append(record)
 
@@ -105,6 +111,37 @@ class EvidenceIntake:
             EvidenceRecord(
                 material_id=material_id,
                 material_type=MaterialType.STATEMENT.value,
+                source_path=str(path),
+                extracted_path=extracted_path,
+                extraction_status=status,
+                requires_external_vision=False,
+            ),
+        )
+
+    def _load_report_document(self, path: Path) -> tuple[Material, EvidenceRecord]:
+        material_id = f"R-{_safe_stem(path)}"
+        extracted = self._extracted_text(path)
+        if extracted is not None:
+            content = extracted
+            status = "extracted_override"
+            extracted_path = str(self._extracted_path(path))
+        elif path.suffix.lower() == ".txt":
+            content = _clean_text(path.read_text(encoding="utf-8"))
+            status = "text_extracted"
+            extracted_path = ""
+        elif path.suffix.lower() == ".docx":
+            content = _clean_text(_extract_docx_text(path))
+            status = "text_extracted" if content.strip() else "empty"
+            extracted_path = ""
+        else:
+            content = _clean_text(_extract_pdf_text(path))
+            status = "text_extracted" if not content.startswith("PDF") else "needs_text_extraction"
+            extracted_path = ""
+        return (
+            Material(material_id, MaterialType.REPORT_IMAGE, content.strip(), source_path=str(path)),
+            EvidenceRecord(
+                material_id=material_id,
+                material_type=MaterialType.REPORT_IMAGE.value,
                 source_path=str(path),
                 extracted_path=extracted_path,
                 extraction_status=status,

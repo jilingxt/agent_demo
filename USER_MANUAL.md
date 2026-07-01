@@ -178,3 +178,26 @@ provider.api_key is required in config/api_keys.toml
 - 确认没有使用 `--disable-qwen-vision`；
 - 确认 `config/api_keys.toml` 中 `[qwen]` 已填写；
 - 如果有 `extracted/同名.txt`，系统会优先使用人工文本。
+
+## 9. 研判报告材料格式
+
+研判报告、法医检测报告等材料统一放在：
+
+```text
+evidence_vault/report_images/
+```
+
+这个目录现在支持三类材料：
+
+- 图片材料：`.jpg` / `.jpeg` / `.png`，默认调用 Qwen 视觉模型描述图片内容并识别可见文字。
+- Word 材料：`.docx`，系统直接读取文档文本，作为报告类证据进入 Case Graph。
+- PDF 材料：`.pdf`，系统优先读取 PDF 文本层；如果是扫描版 PDF 或文本层不可读，请在 `evidence_vault/extracted/` 放入同名 `.txt`。
+
+同名人工提取文本的优先级最高。例如：
+
+```text
+evidence_vault/report_images/监控研判报告.pdf
+evidence_vault/extracted/监控研判报告.txt
+```
+
+运行时会优先使用 `extracted/监控研判报告.txt`，不会在本地做 OCR。

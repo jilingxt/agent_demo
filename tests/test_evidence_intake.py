@@ -62,6 +62,39 @@ class EvidenceIntakeTests(unittest.TestCase):
             self.assertTrue(any(record["requires_external_vision"] for record in manifest["records"]))
             self.assertTrue(any(record["extraction_status"] == "extracted_override" for record in manifest["records"]))
 
+    def test_loads_report_docx_as_report_material(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "evidence_vault"
+            ensure_evidence_vault(root)
+            write_minimal_docx(root / "report_images" / "report1.docx", "研判报告：张三20时出现在现场附近。")
+
+            materials = EvidenceIntake(root).load_materials()
+            manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
+
+            self.assertEqual(len(materials), 1)
+            self.assertEqual(materials[0].material_id, "R-report1")
+            self.assertEqual(materials[0].material_type, MaterialType.REPORT_IMAGE)
+            self.assertIn("研判报告", materials[0].content)
+            self.assertEqual(manifest["records"][0]["extraction_status"], "text_extracted")
+            self.assertFalse(manifest["records"][0]["requires_external_vision"])
+
+    def test_loads_report_pdf_with_extracted_text_override(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "evidence_vault"
+            ensure_evidence_vault(root)
+            (root / "report_images" / "report2.pdf").write_bytes(b"%PDF-1.4\n%placeholder")
+            (root / "extracted" / "report2.txt").write_text("PDF研判报告：李四20时在现场。", encoding="utf-8")
+
+            materials = EvidenceIntake(root).load_materials()
+            manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
+
+            self.assertEqual(len(materials), 1)
+            self.assertEqual(materials[0].material_id, "R-report2")
+            self.assertEqual(materials[0].material_type, MaterialType.REPORT_IMAGE)
+            self.assertIn("PDF研判报告", materials[0].content)
+            self.assertEqual(manifest["records"][0]["extraction_status"], "extracted_override")
+            self.assertFalse(manifest["records"][0]["requires_external_vision"])
+
     def test_image_without_extracted_result_becomes_qwen_placeholder(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp) / "evidence_vault"
