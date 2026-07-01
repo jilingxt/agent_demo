@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+import tomllib
+from dataclasses import dataclass, field, replace
+from pathlib import Path
 
 
 DEEPSEEK_V4_PRO_MODEL = "deepseek-v4-pro"
@@ -64,3 +66,20 @@ class ModelProfiles:
     review: ModelProfile = field(
         default_factory=lambda: ModelProfile("review", "deepseek", DEEPSEEK_V4_PRO_MODEL, 0.0, "high")
     )
+
+    @classmethod
+    def from_runtime_config(cls, path: str | Path | None = None) -> "ModelProfiles":
+        profiles = cls()
+        config_path = Path(path) if path is not None else Path(__file__).resolve().parents[1] / "config" / "api_keys.toml"
+        if not config_path.exists():
+            return profiles
+        data = tomllib.loads(config_path.read_text(encoding="utf-8-sig"))
+        qwen_model = str(data.get("qwen", {}).get("model_name", "")).strip()
+        if not qwen_model:
+            return profiles
+        vision = replace(profiles.vision, model_name=qwen_model)
+        report_image = replace(
+            profiles.report_image,
+            model_name=f"{qwen_model}+{DEEPSEEK_V4_PRO_MODEL}",
+        )
+        return replace(profiles, vision=vision, report_image=report_image)

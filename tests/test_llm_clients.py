@@ -1,9 +1,13 @@
 import unittest
+import urllib.error
+from io import BytesIO
+from unittest.mock import patch
 
 from case_agent_demo.config import ModelProfile
 from case_agent_demo.llm_clients import (
     ApiClientConfig,
     Dsv4Client,
+    ModelApiError,
     QwenVisionClient,
 )
 
@@ -31,6 +35,29 @@ class LlmClientTests(unittest.TestCase):
         content = payload["messages"][0]["content"]
         self.assertEqual(content[0]["type"], "text")
         self.assertEqual(content[1]["type"], "image_url")
+
+    def test_http_error_includes_provider_response_without_leaking_key(self):
+        client = QwenVisionClient(ApiClientConfig("https://dashscope.aliyuncs.com/compatible-mode/v1", "secret-key"))
+        payload = {"model": "qwen2.5-vl-72b-instruct", "messages": []}
+        error_body = b'{"error":{"code":"Forbidden","message":"Model access denied"}}'
+        http_error = urllib.error.HTTPError(
+            url="https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions",
+            code=403,
+            msg="Forbidden",
+            hdrs={},
+            fp=BytesIO(error_body),
+        )
+
+        with patch("urllib.request.urlopen", side_effect=http_error):
+            with self.assertRaises(ModelApiError) as context:
+                client.chat_completions(payload)
+
+        message = str(context.exception)
+        self.assertIn("HTTP 403 Forbidden", message)
+        self.assertIn("Forbidden", message)
+        self.assertIn("Model access denied", message)
+        self.assertIn("config/api_keys.toml", message)
+        self.assertNotIn("secret-key", message)
 
 
 if __name__ == "__main__":

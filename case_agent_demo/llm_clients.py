@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import tomllib
+import urllib.error
 import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
@@ -12,6 +13,10 @@ from case_agent_demo.config import ModelProfile
 
 class MissingApiKeyError(RuntimeError):
     """Raised when a required API key is absent from the API key config file."""
+
+
+class ModelApiError(RuntimeError):
+    """Raised when a configured model provider rejects or fails a request."""
 
 
 @dataclass(frozen=True)
@@ -41,7 +46,7 @@ class ApiClientConfig:
     def from_file(cls, provider: str, path: str | Path | None = None) -> "ApiClientConfig":
         provider = provider.lower()
         config_path = Path(path) if path is not None else default_api_keys_path()
-        data = tomllib.loads(config_path.read_text(encoding="utf-8"))
+        data = tomllib.loads(config_path.read_text(encoding="utf-8-sig"))
         section = data.get(provider, {})
         api_key = str(section.get("api_key", "")).strip()
         if not api_key:
@@ -85,8 +90,16 @@ class OpenAICompatibleClient:
             },
             method="POST",
         )
-        with urllib.request.urlopen(request, timeout=self.config.timeout_seconds) as response:
-            return json.loads(response.read().decode("utf-8"))
+        try:
+            with urllib.request.urlopen(request, timeout=self.config.timeout_seconds) as response:
+                return json.loads(response.read().decode("utf-8"))
+        except urllib.error.HTTPError as exc:
+            raise ModelApiError(_format_http_error(url, exc)) from exc
+        except urllib.error.URLError as exc:
+            raise ModelApiError(
+                f"LLM API request failed before receiving a response: {exc.reason}. "
+                "Check config/api_keys.toml base_url, network/proxy settings, and provider availability."
+            ) from exc
 
 
 class Dsv4Client(OpenAICompatibleClient):
@@ -133,3 +146,27 @@ class QwenVisionClient(OpenAICompatibleClient):
             "temperature": profile.temperature,
             "messages": [{"role": "user", "content": content}],
         }
+
+
+def _format_http_error(url: str, exc: urllib.error.HTTPError) -> str:
+    body = _read_error_body(exc)
+    hint = (
+        "Check config/api_keys.toml: api_key, base_url, model name, workspace/region permissions, "
+        "and whether the model is enabled for this account."
+    )
+    if "dashscope.aliyuncs.com" in url and exc.code in {401, 403}:
+        hint += (
+            " For Qwen/DashScope 401 or 403, verify that the key is a Model Studio/DashScope key, "
+            "the account has access to the configured vision model, and the base_url matches the required workspace endpoint."
+        )
+    message = f"LLM API request failed: HTTP {exc.code} {exc.reason} for {url}. {hint}"
+    if body:
+        message += f" Provider response: {body}"
+    return message
+
+
+def _read_error_body(exc: urllib.error.HTTPError) -> str:
+    try:
+        return exc.read().decode("utf-8", errors="replace").strip()
+    except Exception:
+        return ""

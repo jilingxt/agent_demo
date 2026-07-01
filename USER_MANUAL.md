@@ -201,3 +201,26 @@ evidence_vault/extracted/监控研判报告.txt
 ```
 
 运行时会优先使用 `extracted/监控研判报告.txt`，不会在本地做 OCR。
+
+## 10. Qwen 403 Forbidden 怎么处理
+
+如果真实图片证据运行时报 `HTTP 403 Forbidden`，一般不是本地 OCR 问题，本项目不会在本地做 OCR。请按下面顺序检查：
+
+1. 打开 `config/api_keys.toml`，确认 `[qwen].api_key` 填的是阿里云 Model Studio / DashScope 可用 key。
+2. 确认该账号有权限调用当前配置的视觉模型 `qwen2.5-vl-72b-instruct`。
+3. 如果阿里云控制台给了带 WorkspaceId 的 OpenAI 兼容地址，把 `[qwen].base_url` 改成控制台提供的地址；默认地址是 `https://dashscope.aliyuncs.com/compatible-mode/v1`。
+4. 再次运行命令。新的报错会显示服务端返回的错误码和消息，但不会泄露 API key。
+
+### 切换 Qwen 视觉模型
+
+在 `config/api_keys.toml` 的 `[qwen]` 下添加或修改：
+
+```toml
+model_name = "qwen2.5-vl-72b-instruct"
+```
+
+如果运行时返回 `access_denied`，代表当前账号没有这个模型权限。可以开通该模型权限，或临时改成账号可用的模型，例如：
+
+```toml
+model_name = "qwen-vl-plus"
+```
