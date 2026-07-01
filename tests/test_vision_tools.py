@@ -4,6 +4,7 @@ import unittest
 from pathlib import Path
 
 from case_agent_demo.config import ModelProfile
+from case_agent_demo.llm_clients import ModelApiError
 from case_agent_demo.models import Material, MaterialType
 from case_agent_demo.vision_tools import (
     ImageEvidenceDescription,
@@ -105,6 +106,34 @@ class VisionToolsTests(unittest.TestCase):
         self.assertEqual(len(image_urls), 2)
         self.assertTrue(all(url.startswith("data:image/jpeg;base64,") for url in image_urls))
         self.assertNotIn(str(b1), str(client.payloads[0]))
+
+    def test_qwen_group_falls_back_to_single_images_when_provider_rejects_group_format(self):
+        class GroupRejectingClient(FakeQwenClient):
+            def chat_completions(self, payload):
+                image_count = sum(
+                    1
+                    for item in payload["messages"][0]["content"]
+                    if item.get("type") == "image_url"
+                )
+                if image_count > 1:
+                    raise ModelApiError("The image format is illegal and cannot be opened")
+                return {"choices": [{"message": {"content": '{"pic":"single image","text":"single text","confidence":0.96}'}}]}
+
+        client = GroupRejectingClient("")
+        profile = ModelProfile("vision", "qwen", "qwen-vl-plus", 0.0, "vision")
+        tool = QwenImageEvidenceTool(client=client, profile=profile, prompt="json only")
+        with tempfile.TemporaryDirectory() as tmp:
+            a1 = Path(tmp) / "1.jpg"
+            a2 = Path(tmp) / "2.jpg"
+            a1.write_bytes(b"image-one")
+            a2.write_bytes(b"image-two")
+
+            description = tool.describe_group("group_a", [str(a1), str(a2)])
+
+        self.assertIn("1.jpg: single image", description.pic)
+        self.assertIn("2.jpg: single image", description.pic)
+        self.assertIn("1.jpg: single text", description.text)
+        self.assertEqual(description.confidence, 0.96)
 
 
 if __name__ == "__main__":

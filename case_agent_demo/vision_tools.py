@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from case_agent_demo.config import ModelProfile
-from case_agent_demo.llm_clients import QwenVisionClient
+from case_agent_demo.llm_clients import ModelApiError, QwenVisionClient
 from case_agent_demo.models import Material
 from case_agent_demo.prompt_config import PromptLoader
 
@@ -72,8 +72,38 @@ class QwenImageEvidenceTool:
             for image_path in image_paths
         ]
         payload = self.client.build_vision_group_payload(self.profile, self.prompt, image_urls)
-        response = self.client.chat_completions(payload)
-        return parse_qwen_image_description(response, min_confidence=self.min_confidence)
+        try:
+            response = self.client.chat_completions(payload)
+            return parse_qwen_image_description(response, min_confidence=self.min_confidence)
+        except ModelApiError as exc:
+            if not _is_image_format_error(exc):
+                raise
+            return self._describe_group_one_by_one(group_id, image_paths, image_urls)
+
+    def _describe_group_one_by_one(
+        self, group_id: str, image_paths: list[str], image_urls: list[str]
+    ) -> ImageEvidenceDescription:
+        descriptions: list[tuple[str, ImageEvidenceDescription]] = []
+        for image_path, image_url in zip(image_paths, image_urls):
+            payload = self.client.build_vision_payload(self.profile, self.prompt, image_url)
+            try:
+                response = self.client.chat_completions(payload)
+            except ModelApiError as exc:
+                raise ModelApiError(f"Qwen vision failed for image {image_path} in group {group_id}: {exc}") from exc
+            descriptions.append((image_path, parse_qwen_image_description(response, min_confidence=self.min_confidence)))
+        if not descriptions:
+            return ImageEvidenceDescription(pic="", text="", confidence=0.0, min_confidence=self.min_confidence)
+        pic = "\n".join(f"{Path(path).name}: {description.pic}" for path, description in descriptions)
+        text = "\n".join(f"{Path(path).name}: {description.text}" for path, description in descriptions if description.text)
+        confidence = min(description.confidence for _, description in descriptions)
+        raw_response = "\n".join(description.raw_response for _, description in descriptions if description.raw_response)
+        return ImageEvidenceDescription(
+            pic=pic,
+            text=text,
+            confidence=confidence,
+            raw_response=raw_response,
+            min_confidence=self.min_confidence,
+        )
 
 
 def local_image_to_data_url(path: str | Path) -> str:
@@ -133,3 +163,8 @@ def _strip_json_fence(content: str) -> str:
 
 def _is_remote_url(value: str) -> bool:
     return value.startswith("http://") or value.startswith("https://")
+
+
+def _is_image_format_error(error: Exception) -> bool:
+    message = str(error).lower()
+    return "image format" in message or "cannot be opened" in message

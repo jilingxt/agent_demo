@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import re
 from dataclasses import dataclass
@@ -25,14 +25,38 @@ from case_agent_demo.vision_tools import ImageEvidenceDescription
 
 
 def _find_person(text: str) -> str:
-    match = re.search(r"([\u4e00-\u9fa5]{2,3})(?:称|出现在|在|没有|参与)", text)
+    normalized = re.sub(r"\s+", "", text)
+    label_patterns = [
+        r"嫌疑人([\u4e00-\u9fa5]{2,4}?)(?=首先|先|将|把|与|和|，|,|。|$)",
+        r"被询问人([\u4e00-\u9fa5]{2,4}?)(?=问[:：]|男|女|，|,|。|$)",
+        r"被鉴定人[:：]?([\u4e00-\u9fa5]{2,4}?)(?=，|,|。|男|女|所受|$)",
+        r"受害人([\u4e00-\u9fa5]{2,4}?)(?=被|被鉴定|，|,|。|$)",
+        r"答[:：]?我叫([\u4e00-\u9fa5]{2,4}?)(?=，|,|。|男|女|$)",
+    ]
+    for pattern in label_patterns:
+        match = re.search(pattern, normalized)
+        if match:
+            person = _clean_person_candidate(match.group(1))
+            if person:
+                return person
+
+    match = re.search(r"([\u4e00-\u9fa5]{2,3})(?:称|出现在|没有|参与)", normalized)
     if not match:
         return "未识别人员"
-    person = match.group(1)
+    person = _clean_person_candidate(match.group(1))
+    if not person:
+        return "未识别人员"
     if len(person) == 3 and person[0] in "年月日时分秒点第":
         return person[1:]
     return person
 
+
+def _clean_person_candidate(candidate: str) -> str:
+    person = candidate.strip("：:，,。；;、 ")
+    bad_fragments = ("我", "你", "他", "她", "其", "本所", "我所", "首先", "之后", "工作", "司法", "鉴定")
+    if any(fragment in person for fragment in bad_fragments):
+        return ""
+    return person
 
 def _find_time(text: str) -> str:
     match = re.search(r"(\d{1,2}?(?:\d{1,2}?)?)", text)
@@ -150,7 +174,12 @@ class PlanningAgent:
                 parser=_case_type_suggestion_from_json,
             )
         joined = "\n".join(item.content for item in materials)
-        case_type = "盗窃类案件" if any(word in joined for word in ("门锁", "盗", "占有")) else "待人工判断案件"
+        if any(word in joined for word in ("故意伤害", "殴打", "轻伤", "骨折", "抱摔")):
+            case_type = "故意伤害类案件"
+        elif any(word in joined for word in ("门锁", "盗窃", "占有")):
+            case_type = "盗窃类案件"
+        else:
+            case_type = "待人工判断案件"
         return CaseTypeSuggestion(
             suggested_case_types=[
                 {
@@ -194,7 +223,7 @@ class TextAgent:
                 person=person,
                 behavior=behavior,
                 time=_find_time(material.content),
-                location="现场" if "现场" in material.content else "",
+                location="鐜板満" if "鐜板満" in material.content else "",
                 confidence=0.86,
             )
         ]
@@ -257,8 +286,8 @@ class ReportImageAgent:
         if self.vision_tool is not None and _should_use_vision_tool(material):
             description = self.vision_tool.describe(material)
             content = _image_description_content(description)
-        report_type = "监控研判报告" if "监控" in content else "法医检测报告"
-        confidence = 0.93 if any(word in content for word in ("签章清晰", "结论", "报告")) else 0.78
+        report_type = "监控研判报告" if any(word in content for word in ("监控", "研判")) else "法医检测报告"
+        confidence = 0.93 if any(word in content for word in ("签章清晰", "结论", "报告", "鉴定意见", "轻伤")) else 0.78
         return [
             Fact(
                 fact_id=f"F-{material.material_id}-REPORT",
@@ -280,7 +309,7 @@ class ReportImageAgent:
             content = _image_description_content(description)
         material = Material(group_id, MaterialType.REPORT_IMAGE, content, source_path=";".join(image_paths))
         report_type = "report_image"
-        confidence = 0.93 if any(word in content for word in ("绛剧珷娓呮櫚", "缁撹", "鎶ュ憡")) else 0.78
+        confidence = 0.93 if any(word in content for word in ("结论", "报告", "鉴定意见", "轻伤")) else 0.78
         return [
             Fact(
                 fact_id=f"F-{material.material_id}-REPORT",
@@ -289,7 +318,7 @@ class ReportImageAgent:
                 person=_find_person(content),
                 behavior=f"{report_type}: {content.strip()}",
                 time=_find_time(content),
-                location="鐜板満闄勮繎" if "鐜板満闄勮繎" in content else "",
+                location="现场附近" if "现场附近" in content else "",
                 confidence=confidence,
             )
         ]
@@ -319,8 +348,8 @@ class ConflictAgent:
 
     def detect(self, graph: EvidenceGraph) -> list[Conflict]:
         conflicts: list[Conflict] = []
-        absent = [fact for fact in graph.facts if "没有到过现场" in fact.behavior or "在家" in fact.behavior]
-        present = [fact for fact in graph.facts if "出现在现场" in fact.behavior or "看见" in fact.behavior]
+        absent = [fact for fact in graph.facts if any(word in fact.behavior for word in ("没有到过现场", "在家"))]
+        present = [fact for fact in graph.facts if any(word in fact.behavior for word in ("出现在现场", "在现场", "看见"))]
         for idx, left in enumerate(absent, start=1):
             for right in present:
                 if left.fact_id != right.fact_id:
@@ -353,8 +382,8 @@ class _LegacyRagLegalAgent:
             LegalMatch(
                 law_id="L-DEMO-1",
                 law_name="中华人民共和国刑法",
-                article="第二百六十四条（demo 预置）",
-                legal_element="以非法占有为目的，秘密窃取公私财物等构成要件需结合证据审查。",
+                article="第二百三十四条（demo 预置）",
+                legal_element="故意伤害他人身体的，需结合伤情、行为、因果关系等证据审查。",
                 matched_behavior=f"{case_type} / {behavior}",
                 source="demo 预置法条片段，未实现 RAG 入库",
             )
