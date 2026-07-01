@@ -5,6 +5,8 @@ from pathlib import PurePath
 
 from case_agent_demo.models import Material, MaterialType
 
+IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png"}
+
 
 @dataclass(frozen=True)
 class MaterialTask:
@@ -41,9 +43,9 @@ class MaterialPlan:
                         source_paths=[material.source_path],
                     )
                 )
-            elif material.material_type == MaterialType.EVIDENCE_IMAGE:
+            elif material.material_type == MaterialType.EVIDENCE_IMAGE and _is_image_source(material):
                 evidence_groups.setdefault(_image_group_id(material), []).append(material)
-            elif material.material_type == MaterialType.REPORT_IMAGE:
+            elif material.material_type == MaterialType.REPORT_IMAGE and _is_image_source(material):
                 report_groups.setdefault(_image_group_id(material), []).append(material)
 
         return cls(
@@ -98,3 +100,9 @@ def _image_group_id(material: Material) -> str:
     if parent in {"identification_images", "report_images", ""}:
         return path.stem
     return parent
+
+
+def _is_image_source(material: Material) -> bool:
+    if not material.source_path:
+        return False
+    return PurePath(material.source_path).suffix.lower() in IMAGE_EXTENSIONS

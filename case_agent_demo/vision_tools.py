@@ -79,6 +79,8 @@ class QwenImageEvidenceTool:
 def local_image_to_data_url(path: str | Path) -> str:
     image_path = Path(path)
     mime_type = mimetypes.guess_type(str(image_path))[0] or "application/octet-stream"
+    if mime_type not in {"image/jpeg", "image/png"}:
+        raise ValueError(f"Unsupported image file for Qwen vision: {image_path} ({mime_type})")
     encoded = base64.b64encode(image_path.read_bytes()).decode("ascii")
     return f"data:{mime_type};base64,{encoded}"
 

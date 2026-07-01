@@ -48,6 +48,17 @@ class VisionToolsTests(unittest.TestCase):
             encoded = data_url.split(",", 1)[1]
             self.assertEqual(base64.b64decode(encoded), b"fake-png-bytes")
 
+    def test_local_image_to_data_url_rejects_non_image_files(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "report.docx"
+            path.write_bytes(b"not an image")
+
+            with self.assertRaises(ValueError) as context:
+                local_image_to_data_url(path)
+
+        self.assertIn("Unsupported image file", str(context.exception))
+        self.assertIn("report.docx", str(context.exception))
+
     def test_qwen_image_evidence_tool_parses_json_content(self):
         client = FakeQwenClient('{"pic":"现场照片显示门锁损坏","text":"签名：张三","confidence":0.91}')
         profile = ModelProfile("vision", "qwen", "qwen-vl-plus", 0.0, "vision")
