@@ -47,7 +47,7 @@ class LegalRetrievalTool:
         query_text = f"{case_type} {behavior_text}".lower()
         for index, law in enumerate(_read_jsonl(self.library_path)):
             score = _score_law(law, case_type, query_text)
-            if score > 0:
+            if _should_include_law(law, case_type, query_text, score):
                 scored.append((score, -index, law))
 
         scored.sort(reverse=True)
@@ -108,6 +108,50 @@ def _score_law(law: dict[str, Any], case_type: str, query_text: str) -> int:
     if law_text and any(token in law_text for token in query_text.split()):
         score += 1
     return score
+
+
+def _should_include_law(law: dict[str, Any], case_type: str, query_text: str, score: int) -> bool:
+    if score <= 0:
+        return False
+    case_types = [str(item) for item in law.get("case_types", [])]
+    case_type_matches = any(item and item in case_type for item in case_types)
+    if case_type_matches:
+        return score >= 2
+
+    law_id = str(law.get("law_id", "")).lower()
+    if "criminal_law_264" in law_id:
+        theft_strong_terms = ("盗窃", "偷", "窃取", "拿走", "非法占有", "秘密窃取", "扒窃", "入户盗窃")
+        return any(term in query_text for term in theft_strong_terms)
+
+    if _has_property_damage_context(query_text) and _law_has_any(law, ("毁坏", "损坏", "摔坏", "砸坏")):
+        return True
+
+    strong_hits = 0
+    generic_terms = {"手机", "财物", "物品", "现场", "人员"}
+    for keyword in law.get("keywords", []):
+        keyword_text = str(keyword).lower()
+        if keyword_text and keyword_text not in generic_terms and keyword_text in query_text:
+            strong_hits += 1
+    for element in law.get("legal_elements", []):
+        element_text = str(element).lower()
+        if element_text and element_text not in generic_terms and element_text in query_text:
+            strong_hits += 1
+    return strong_hits >= 1 and score >= 2
+
+
+def _law_has_any(law: dict[str, Any], terms: tuple[str, ...]) -> bool:
+    haystack = " ".join(
+        [
+            str(law.get("text", "")),
+            " ".join(str(item) for item in law.get("keywords", [])),
+            " ".join(str(item) for item in law.get("legal_elements", [])),
+        ]
+    )
+    return any(term in haystack for term in terms)
+
+
+def _has_property_damage_context(query_text: str) -> bool:
+    return any(term in query_text for term in ("毁坏", "损坏", "摔坏", "砸坏", "屏幕损坏", "裂开"))
 
 
 def _law_to_match(law: dict[str, Any], case_type: str, behavior_text: str, purpose: str) -> LegalMatch:

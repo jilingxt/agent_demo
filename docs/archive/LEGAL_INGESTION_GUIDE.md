@@ -22,7 +22,7 @@ legal_library/laws.jsonl
 追加一行：
 
 ```json
-{"law_id":"criminal_law_264","law_name":"中华人民共和国刑法","article":"第二百六十四条","text":"盗窃公私财物，数额较大的，或者多次盗窃、入户盗窃、携带凶器盗窃、扒窃的，依法处理。","legal_elements":["非法占有目的","秘密窃取","公私财物","数额较大或多次盗窃等情形"],"keywords":["盗窃","手机","财物","门锁","拿走","窃取"],"case_types":["盗窃类案件"],"effective_status":"effective","source":"static_law_library"}
+{"law_id":"criminal_law_264","law_name":"中华人民共和国刑法","article":"第二百六十四条","text":"盗窃公私财物，数额较大的，或者多次盗窃、入户盗窃、携带凶器盗窃、扒窃的，依法处理。","legal_elements":["非法占有目的","秘密窃取","公私财物","数额较大或多次盗窃等情形"],"keywords":["盗窃","偷","窃取","秘密窃取","非法占有","拿走","扒窃","入户盗窃"],"case_types":["盗窃类案件"],"effective_status":"effective","source":"static_law_library"}
 ```
 
 字段说明：
@@ -47,6 +47,8 @@ legal_library/laws.jsonl
 - `legal_elements`。
 
 命中后返回 `LegalMatch`，供 `ReasoningAgent`、`JudgeAgent`、`ReviewAgent` 使用。没有命中时，系统会回退到 demo 预置法条，避免流程中断。
+
+关键词建议使用构成要件或强行为词，不要只写“手机、财物、物品、人员、现场”等泛化词。当前检索逻辑会避免“摔坏手机”仅因包含“手机/财物”误命中盗窃条款；盗窃条款需要出现“盗窃、偷、窃取、拿走、非法占有”等更强语义。
 
 ## 4. 在代码里测试
 

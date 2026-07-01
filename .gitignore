@@ -8,6 +8,7 @@ config/api_keys.toml
 
 # 证据材料（可能含敏感数据）
 evidence_vault/
+example_test/
 
 # 运行记录
 workflow-runs/

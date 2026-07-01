@@ -59,8 +59,248 @@ def _clean_person_candidate(candidate: str) -> str:
     return person
 
 def _find_time(text: str) -> str:
-    match = re.search(r"(\d{1,2}?(?:\d{1,2}?)?)", text)
+    match = re.search(r"(\d{4}年\d{1,2}月\d{1,2}日(?:\d{1,2}时(?:\d{1,2}分)?许?)?)", text)
+    if match:
+        return match.group(1)
+    match = re.search(r"(\d{1,2}时(?:\d{1,2}分)?许?)", text)
     return match.group(1) if match else ""
+
+
+def _normalize_text(text: str) -> str:
+    return re.sub(r"\s+", "", text).strip()
+
+
+def _compact_text(text: str) -> str:
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def _shorten(text: str, limit: int = 110) -> str:
+    text = _compact_text(text)
+    if len(text) <= limit:
+        return text
+    return text[: limit - 1].rstrip("，,；;、 ") + "…"
+
+
+def _extract_answer(text: str, question_keyword: str) -> str:
+    pattern = rf"问[:：][^问答]{{0,80}}{re.escape(question_keyword)}[^答]{{0,80}}答[:：](.*?)(?=问[:：]|$)"
+    match = re.search(pattern, text, flags=re.S)
+    return match.group(1).strip() if match else ""
+
+
+def _find_location(text: str) -> str:
+    normalized = _compact_text(text)
+    known_locations = ("深圳市宝安区新凯飞汽配", "新凯飞汽配", "石岩派出所")
+    for location in known_locations:
+        if location in normalized:
+            return location
+    patterns = [
+        r"在([^，。；;]{2,40}?)(?:发生|，|,)",
+        r"地点[:：]?([^，。；;]{2,40})",
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, normalized)
+        if match:
+            location = match.group(1).strip()
+            if location.startswith("在"):
+                location = location[1:]
+            return location
+    return "现场" if "现场" in normalized else ""
+
+
+def _find_named_actor(text: str, fallback: str) -> str:
+    for name in ("李文杰", "贺显作", "张三", "李四"):
+        if name in text:
+            if "我" in text and name == fallback:
+                return name
+            if any(action in text for action in ("抱摔", "拽", "拉", "殴打", "打")):
+                return name
+    return fallback or _find_person(text)
+
+
+def _find_injury(text: str) -> str:
+    injuries = []
+    for keyword in ("轻伤二级", "双侧鼻骨", "鼻骨骨折", "鼻中隔骨折", "眼角肿包流血", "肿包流血", "皮下瘀血", "软组织挫伤"):
+        if keyword in text and keyword not in injuries:
+            injuries.append(keyword)
+    return "、".join(injuries)
+
+
+def _find_victim(text: str, actor: str = "") -> str:
+    for name in ("贺显作", "李文杰", "张三", "李四"):
+        if name and name != actor and name in text:
+            return name
+    match = re.search(r"被鉴定人[:：]?([\u4e00-\u9fa5]{2,4})", _normalize_text(text))
+    if match:
+        return _clean_person_candidate(match.group(1))
+    return ""
+
+
+def _find_object(text: str, candidates: tuple[str, ...]) -> str:
+    for item in candidates:
+        if item in text:
+            return item
+    return ""
+
+
+def _find_property_actor(text: str, fallback_person: str) -> str:
+    normalized = _compact_text(text)
+    for name in ("李文杰", "贺显作", "张三", "李四"):
+        if name in normalized and re.search(rf"{name}[^，。；;]{{0,12}}(?:把|将)", normalized):
+            return name
+    if re.search(r"他(?:来|到|上前|走到)[^，。；;]{0,16}(?:把|将)", normalized):
+        actor = _find_victim(normalized, fallback_person)
+        if actor:
+            return actor
+    if re.search(r"(?:我|本人)[^，。；;]{0,8}(?:把|将)", normalized):
+        return fallback_person
+    return fallback_person or _find_person(normalized)
+
+
+def _summarize_property_text(text: str, fallback_person: str) -> tuple[str, str] | None:
+    normalized = _compact_text(text)
+    obj = _find_object(normalized, ("手机", "门锁", "车辆", "电脑", "背包", "现金", "财物", "物品"))
+    if not obj:
+        return None
+
+    actor = _find_property_actor(normalized, fallback_person)
+    damage_terms = ("摔坏", "砸坏", "毁坏", "损坏", "屏幕损坏", "摔在地上")
+    taking_terms = ("拿走", "拿取", "偷走", "窃取", "秘密窃取")
+    if any(term in normalized for term in damage_terms):
+        verb = "损坏"
+        if "摔" in normalized:
+            verb = "摔坏"
+        elif "砸" in normalized:
+            verb = "砸坏"
+        behavior = f"{actor}{verb}{obj}"
+        if "损坏" in normalized and "损坏" not in behavior:
+            behavior += f"并造成{obj}损坏"
+        return behavior, obj
+    if any(term in normalized for term in taking_terms):
+        return f"{actor}拿走{obj}", obj
+    return None
+
+
+def _summarize_assault_text(text: str, fallback_person: str) -> tuple[str, str]:
+    normalized = _compact_text(text)
+    actor = "李文杰" if "李文杰" in normalized and any(word in normalized for word in ("抱摔", "拽倒", "拉")) else fallback_person
+    victim = _find_victim(normalized, actor)
+    actions: list[str] = []
+    if any(word in normalized for word in ("拉他的衣领", "拉后衣领", "拽住", "拽倒", "拉到在地", "拉倒在地")):
+        actions.append("拉拽衣领并拽倒")
+    if "推搡" in normalized:
+        actions.append("互相推搡")
+    if "抱摔" in normalized or ("抱着" in normalized and "摔" in normalized):
+        actions.append("抱摔")
+    if "掐" in normalized and "脖子" in normalized:
+        actions.append("掐脖子")
+    injury = _find_injury(normalized)
+    if actions:
+        target = victim or "对方"
+        behavior = f"{actor}{'、'.join(actions)}{target}"
+        if injury:
+            behavior += f"，造成{injury}"
+        elif any(word in normalized for word in ("受伤", "流血", "撞击地面")):
+            behavior += "并致其受伤"
+        return _shorten(behavior), f"{target} {injury}".strip()
+    return _shorten(normalized), injury
+
+
+def _summarize_statement_fact(material: Material) -> Fact:
+    person = _find_person(material.content)
+    event_text = (
+        _extract_answer(material.content, "事情经过")
+        or _extract_answer(material.content, "具体是怎么")
+        or _extract_answer(material.content, "伤是如何造成")
+        or material.content
+    )
+    behavior, obj = _summarize_property_text(event_text, person) or _summarize_assault_text(event_text, person)
+    return Fact(
+        fact_id=f"F-{material.material_id}-TEXT",
+        source_material_id=material.material_id,
+        source_type=material.material_type.value,
+        person=person,
+        behavior=behavior,
+        time=_find_time(event_text or material.content),
+        location=_find_location(event_text or material.content),
+        object=obj,
+        confidence=0.86,
+    )
+
+
+def _extract_denial_facts(material: Material) -> list[Fact]:
+    text = _compact_text(material.content)
+    person = _find_person(material.content)
+    victim = _find_victim(text, person)
+    event_text = _extract_answer(material.content, "事情经过") or text
+    patterns = [
+        (r"有没有打架[^答]{0,40}答[:：]?\s*没有", "没有打架", "violence"),
+        (r"有无动手[^答]{0,40}答[:：]?\s*没有", "没有动手", "violence"),
+        (r"有没有殴打[^答]{0,40}答[:：]?\s*没有", "没有殴打", "violence"),
+        (r"有没有拿[^答]{0,40}答[:：]?\s*没有", "没有拿取", "taking_property"),
+        (r"有没有财物受损[^答]{0,40}答[:：]?\s*没有", "没有财物受损", "property_damage"),
+        (r"有没有财务损坏[^答]{0,40}答[:：]?\s*没有", "没有财物损坏", "property_damage"),
+        (r"有没有损坏[^答]{0,40}答[:：]?\s*没有", "没有损坏", "property_damage"),
+        (r"现场有没有人受伤[^答]{0,40}答[:：]?\s*(?:没有|我没有[^，。；;]*，?[^。；;]*没有受伤)", "没有人受伤", "injury_consequence"),
+    ]
+    facts: list[Fact] = []
+    for index, (pattern, behavior, _claim_type) in enumerate(patterns, start=1):
+        if not re.search(pattern, text):
+            continue
+        facts.append(
+            Fact(
+                fact_id=f"F-{material.material_id}-DENIAL-{index}",
+                source_material_id=material.material_id,
+                source_type=material.material_type.value,
+                person=person,
+                behavior=f"{person}称{behavior}",
+                time=_find_time(event_text),
+                location=_find_location(event_text),
+                object=victim,
+                confidence=0.84,
+            )
+        )
+    return facts
+
+
+def _summarize_image_fact(material: Material, content: str, confidence: float) -> Fact:
+    behavior, obj = _summarize_assault_text(content, _find_person(content))
+    if not behavior or behavior == "未识别人员":
+        behavior = _shorten(content.replace("图片内容：", "").replace("文字识别：", " "))
+    return Fact(
+        fact_id=f"F-{material.material_id}-PIC",
+        source_material_id=material.material_id,
+        source_type=material.material_type.value,
+        person=_find_person(content),
+        behavior=behavior,
+        time=_find_time(content),
+        location=_find_location(content),
+        object=obj,
+        confidence=confidence,
+    )
+
+
+def _summarize_report_fact(material: Material, content: str, confidence: float) -> Fact:
+    report_type = "监控研判报告" if any(word in content for word in ("监控", "研判")) else "法医鉴定报告"
+    person = _find_person(content)
+    injury = _find_injury(content)
+    if "鉴定意见" in content or "轻伤" in content:
+        victim = _find_victim(content) or person
+        behavior = f"{report_type}认定{victim}所受损伤为{injury or '需结合报告原文核对'}"
+        obj = f"{victim} {injury}".strip()
+    else:
+        behavior, obj = _summarize_assault_text(content, person)
+        behavior = f"{report_type}显示{behavior}"
+    return Fact(
+        fact_id=f"F-{material.material_id}-REPORT",
+        source_material_id=material.material_id,
+        source_type=material.material_type.value,
+        person=person,
+        behavior=_shorten(behavior, 100),
+        time=_find_time(content),
+        location=_find_location(content),
+        object=obj,
+        confidence=confidence,
+    )
 
 
 def _should_use_vision_tool(material: Material) -> bool:
@@ -111,7 +351,13 @@ def _reasoning_user_input(payload: dict[str, Any]) -> str:
     graph: EvidenceGraph = payload["evidence_graph"]
     laws: list[LegalMatch] = payload["legal_matches"]
     conflicts: list[Conflict] = payload["conflicts"]
-    fact_lines = "\n".join(f"{fact.fact_id}|{fact.source_material_id}|{fact.person}|{fact.behavior}" for fact in graph.facts)
+    fact_lines = "\n".join(
+        (
+            f"{fact.fact_id}|source={fact.source_material_id}|person={fact.person}|"
+            f"behavior={fact.behavior}|time={fact.time}|location={fact.location}|object={fact.object}"
+        )
+        for fact in graph.facts
+    )
     law_lines = "\n".join(f"{law.law_id}|{law.law_name}|{law.article}|{law.legal_element}" for law in laws)
     conflict_lines = "\n".join(f"{item.conflict_id}|{item.conflict_type}|{item.source_a}|{item.source_b}|{item.severity}" for item in conflicts)
     return (
@@ -140,7 +386,7 @@ def _facts_from_json(data: dict[str, Any], material: Material) -> list[Fact]:
                 source_material_id=material.material_id,
                 source_type=material.material_type.value,
                 person=str(item.get("person", "")),
-                behavior=str(item.get("behavior", "")),
+                behavior=_shorten(str(item.get("behavior", "")), 120),
                 time=str(item.get("time", "")),
                 location=str(item.get("location", "")),
                 object=str(item.get("object", "")),
@@ -213,20 +459,7 @@ class TextAgent:
         return self._extract_fallback(material)
 
     def _extract_fallback(self, material: Material) -> list[Fact]:
-        person = _find_person(material.content)
-        behavior = material.content.strip()
-        return [
-            Fact(
-                fact_id=f"F-{material.material_id}-TEXT",
-                source_material_id=material.material_id,
-                source_type=material.material_type.value,
-                person=person,
-                behavior=behavior,
-                time=_find_time(material.content),
-                location="鐜板満" if "鐜板満" in material.content else "",
-                confidence=0.86,
-            )
-        ]
+        return [_summarize_statement_fact(material), *_extract_denial_facts(material)]
 
 
 @dataclass
@@ -258,19 +491,7 @@ class PicAgent:
         return self._fact_from_content(material, content, confidence)
 
     def _fact_from_content(self, material: Material, content: str, confidence: float) -> list[Fact]:
-        return [
-            Fact(
-                fact_id=f"F-{material.material_id}-PIC",
-                source_material_id=material.material_id,
-                source_type=material.material_type.value,
-                person=_find_person(content),
-                behavior=f"图片内容：{content.strip()}",
-                time=_find_time(content),
-                location="现场" if "现场" in content else "",
-                object="门锁" if "门锁" in content else "",
-                confidence=confidence,
-            )
-        ]
+        return [_summarize_image_fact(material, content, confidence)]
 
 @dataclass
 class ReportImageAgent:
@@ -288,18 +509,7 @@ class ReportImageAgent:
             content = _image_description_content(description)
         report_type = "监控研判报告" if any(word in content for word in ("监控", "研判")) else "法医检测报告"
         confidence = 0.93 if any(word in content for word in ("签章清晰", "结论", "报告", "鉴定意见", "轻伤")) else 0.78
-        return [
-            Fact(
-                fact_id=f"F-{material.material_id}-REPORT",
-                source_material_id=material.material_id,
-                source_type=material.material_type.value,
-                person=_find_person(content),
-                behavior=f"{report_type}结论：{content.strip()}",
-                time=_find_time(content),
-                location="现场附近" if "现场附近" in content else "",
-                confidence=confidence,
-            )
-        ]
+        return [_summarize_report_fact(material, content, confidence)]
 
     def extract_group(self, group_id: str, image_paths: list[str]) -> list[Fact]:
         if self.vision_tool is None:
@@ -310,18 +520,7 @@ class ReportImageAgent:
         material = Material(group_id, MaterialType.REPORT_IMAGE, content, source_path=";".join(image_paths))
         report_type = "report_image"
         confidence = 0.93 if any(word in content for word in ("结论", "报告", "鉴定意见", "轻伤")) else 0.78
-        return [
-            Fact(
-                fact_id=f"F-{material.material_id}-REPORT",
-                source_material_id=material.material_id,
-                source_type=material.material_type.value,
-                person=_find_person(content),
-                behavior=f"{report_type}: {content.strip()}",
-                time=_find_time(content),
-                location="现场附近" if "现场附近" in content else "",
-                confidence=confidence,
-            )
-        ]
+        return [_summarize_report_fact(material, content, confidence)]
 
 
 @dataclass
@@ -339,6 +538,81 @@ class EvidenceGraphAgent:
 CaseGraphAgent = EvidenceGraphAgent
 
 
+@dataclass(frozen=True)
+class _ConflictClaim:
+    fact: Fact
+    polarity: str
+    claim_types: tuple[str, ...]
+    object_key: str
+
+
+def _classify_conflict_claim(fact: Fact) -> _ConflictClaim:
+    text = f"{fact.person} {fact.behavior} {fact.object}".lower()
+    claim_text = f"{fact.behavior} {fact.object}".lower()
+    polarity = "deny" if _has_any(claim_text, ("没有", "未", "否认", "不承认", "不在", "没", "在家")) else "affirm"
+    claim_types: list[str] = []
+    if _has_any(text, ("到过现场", "在现场", "出现在现场", "看见", "在家")):
+        claim_types.append("presence")
+    if _has_any(text, ("打架", "动手", "殴打", "伤害", "抱摔", "拽倒", "拉拽", "推搡", "掐脖子")):
+        claim_types.append("violence")
+    if _has_any(text, ("拿", "拿走", "取走", "盗窃", "窃取", "占有")):
+        claim_types.append("taking_property")
+    if _has_any(text, ("损坏", "毁坏", "砸坏", "破坏")):
+        claim_types.append("property_damage")
+    if _has_any(text, ("受伤", "伤情", "轻伤", "重伤", "骨折", "流血", "瘀血", "挫伤", "鉴定意见")):
+        claim_types.append("injury_consequence")
+    if not claim_types:
+        claim_types.append("general")
+    return _ConflictClaim(
+        fact=fact,
+        polarity=polarity,
+        claim_types=tuple(dict.fromkeys(claim_types)),
+        object_key=_claim_object_key(fact, text),
+    )
+
+
+def _has_any(text: str, words: tuple[str, ...]) -> bool:
+    return any(word in text for word in words)
+
+
+def _claim_object_key(fact: Fact, text: str) -> str:
+    candidates = []
+    for value in (fact.object, fact.person):
+        if value:
+            candidates.append(value)
+    for keyword in ("贺显作", "李文杰", "手机", "门锁", "财物", "车辆", "背包"):
+        if keyword in text:
+            candidates.append(keyword)
+    for candidate in candidates:
+        cleaned = re.sub(r"\s+", "", candidate)
+        if cleaned:
+            return cleaned
+    return ""
+
+
+def _objects_overlap(left: str, right: str) -> bool:
+    if not left or not right:
+        return True
+    return left in right or right in left
+
+
+def _claim_conflict_type(left: _ConflictClaim, right: _ConflictClaim) -> str:
+    if left.polarity == right.polarity:
+        return ""
+    if not _objects_overlap(left.object_key, right.object_key):
+        return ""
+    left_types = set(left.claim_types)
+    right_types = set(right.claim_types)
+    if left_types & right_types:
+        return "presence_conflict" if "presence" in left_types | right_types else "direct_fact_contradiction"
+    if (
+        ("violence" in left_types and "injury_consequence" in right_types)
+        or ("injury_consequence" in left_types and "violence" in right_types)
+    ):
+        return "denial_vs_consequence"
+    return ""
+
+
 @dataclass
 class ConflictAgent:
     name: str = "conflict_agent"
@@ -348,22 +622,32 @@ class ConflictAgent:
 
     def detect(self, graph: EvidenceGraph) -> list[Conflict]:
         conflicts: list[Conflict] = []
-        absent = [fact for fact in graph.facts if any(word in fact.behavior for word in ("没有到过现场", "在家"))]
-        present = [fact for fact in graph.facts if any(word in fact.behavior for word in ("出现在现场", "在现场", "看见"))]
-        for idx, left in enumerate(absent, start=1):
-            for right in present:
-                if left.fact_id != right.fact_id:
-                    conflicts.append(
-                        Conflict(
-                            conflict_id=f"C-{idx}",
-                            conflict_type="presence_conflict",
-                            claim_a=left.behavior,
-                            claim_b=right.behavior,
-                            source_a=left.source_material_id,
-                            source_b=right.source_material_id,
-                            severity="high",
-                        )
+        claims = [_classify_conflict_claim(fact) for fact in graph.facts]
+        counter = 1
+        seen: set[tuple[str, str, str]] = set()
+        for left in claims:
+            for right in claims:
+                if left.fact.fact_id == right.fact.fact_id:
+                    continue
+                conflict_type = _claim_conflict_type(left, right)
+                if not conflict_type:
+                    continue
+                key = tuple(sorted((left.fact.fact_id, right.fact.fact_id))) + (conflict_type,)
+                if key in seen:
+                    continue
+                seen.add(key)
+                conflicts.append(
+                    Conflict(
+                        conflict_id=f"C-{counter}",
+                        conflict_type=conflict_type,
+                        claim_a=left.fact.behavior,
+                        claim_b=right.fact.behavior,
+                        source_a=left.fact.source_material_id,
+                        source_b=right.fact.source_material_id,
+                        severity="high",
                     )
+                )
+                counter += 1
         return conflicts
 
 
@@ -418,14 +702,32 @@ class ReasoningAgent:
         laws: list[LegalMatch] = payload["legal_matches"]
         conflicts: list[Conflict] = payload["conflicts"]
         case_type = payload["confirmed_case_type"]
-        fact_lines = "\n".join(f"- {fact.person}：{fact.behavior}（来源 {fact.source_material_id}）" for fact in graph.facts)
+        fact_lines = "\n".join(
+            f"- {fact.person or '未识别人员'}：{fact.behavior}（来源 {fact.source_material_id}）"
+            for fact in graph.facts
+        )
+        time_location_lines = "\n".join(
+            f"- {fact.source_material_id}：{fact.time or '时间待核实'}；{fact.location or '地点待核实'}"
+            for fact in graph.facts
+        )
+        object_lines = "\n".join(
+            f"- {fact.source_material_id}：{fact.object}"
+            for fact in graph.facts
+            if fact.object
+        )
+        if not object_lines:
+            object_lines = "- 暂未提取到明确对象或后果。"
         law_lines = "\n".join(f"- {law.law_name}{law.article}：{law.legal_element}" for law in laws)
+        if not law_lines:
+            law_lines = "- 暂未匹配到静态法律依据。"
         conflict_lines = "\n".join(f"- {item.conflict_type}：{item.source_a} 与 {item.source_b} 需人工核对" for item in conflicts)
         if not conflict_lines:
             conflict_lines = "- 暂未发现结构化规则可识别的冲突。"
         return (
             f"人工确认案件类型：{case_type}\n\n"
-            f"现有证据显示：\n{fact_lines}\n\n"
+            f"现有证据显示（行为事实）：\n{fact_lines}\n\n"
+            f"时间地点：\n{time_location_lines}\n\n"
+            f"对象与后果：\n{object_lines}\n\n"
             f"可能关联的法律依据：\n{law_lines}\n\n"
             f"冲突与纰漏提示：\n{conflict_lines}\n\n"
             "结论边界：以上内容仅为基于现有材料的辅助分析，仍需人工复核和补强。"

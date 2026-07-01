@@ -79,6 +79,45 @@ class StaticLegalLibraryTests(unittest.TestCase):
             self.assertEqual(matches[0].law_id, "L-DEMO-1")
             self.assertIn("demo", matches[0].source)
 
+    def test_does_not_match_theft_only_because_phone_was_damaged(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            library_path = Path(tmp) / "laws.jsonl"
+            laws = [
+                {
+                    "law_id": "criminal_law_264",
+                    "law_name": "中华人民共和国刑法",
+                    "article": "第二百六十四条",
+                    "text": "盗窃公私财物，数额较大的，依法处理。",
+                    "legal_elements": ["非法占有目的", "秘密窃取", "公私财物"],
+                    "keywords": ["盗窃", "手机", "财物", "拿走", "窃取"],
+                    "case_types": ["盗窃类案件"],
+                    "source": "static_law_library",
+                },
+                {
+                    "law_id": "criminal_law_275",
+                    "law_name": "中华人民共和国刑法",
+                    "article": "第二百七十五条",
+                    "text": "故意毁坏公私财物，数额较大或者有其他严重情节的，依法处理。",
+                    "legal_elements": ["故意毁坏", "公私财物"],
+                    "keywords": ["毁坏", "损坏", "摔坏", "财物", "手机"],
+                    "case_types": ["故意损毁财物类案件"],
+                    "source": "static_law_library",
+                },
+            ]
+            library_path.write_text("\n".join(json.dumps(item, ensure_ascii=False) for item in laws), encoding="utf-8")
+            tool = LegalRetrievalTool(library_path=library_path)
+
+            matches = tool.retrieve(
+                {
+                    "confirmed_case_type": "故意伤害类案件",
+                    "behaviors": ["李文杰把贺显作的手机摔坏，屏幕损坏"],
+                }
+            )
+
+            law_ids = [item.law_id for item in matches]
+            self.assertIn("criminal_law_275", law_ids)
+            self.assertNotIn("criminal_law_264", law_ids)
+
 
 if __name__ == "__main__":
     unittest.main()
