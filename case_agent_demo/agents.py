@@ -1,25 +1,30 @@
 ﻿from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from langchain_core.runnables import RunnableLambda
 
+from case_agent_demo.graph_store import GraphStoreTool
 from case_agent_demo.models import (
     CaseGraph,
     CaseTypeSuggestion,
     Challenge,
     Conflict,
+    EvidenceEdge,
     EvidenceGraph,
+    EvidenceNode,
     Fact,
     LegalMatch,
     Material,
     MaterialType,
     ReviewResult,
+    fact_to_node,
 )
 from case_agent_demo.config import ModelProfile, ModelProfiles
 from case_agent_demo.material_plan import MaterialPlan
+from case_agent_demo.relation_tools import RelationRuleTool
 from case_agent_demo.tools import LegalRetrievalTool, RagLegalAgent
 from case_agent_demo.vision_tools import ImageEvidenceDescription
 
@@ -527,15 +532,48 @@ class ReportImageAgent:
 class EvidenceGraphAgent:
     name: str = "case_graph_agent"
     legal_tool: LegalRetrievalTool | None = None
+    relation_tool: RelationRuleTool = field(default_factory=RelationRuleTool)
 
     def __post_init__(self) -> None:
-        self.runnable = RunnableLambda(lambda facts: CaseGraph(facts=list(facts)))
+        self.runnable = RunnableLambda(self.build)
 
     def build(self, facts: list[Fact]) -> CaseGraph:
-        return self.runnable.invoke(facts)
+        store = GraphStoreTool()
+        for fact in facts:
+            material_node = _material_node_for_fact(fact)
+            fact_node = fact_to_node(fact)
+            existing_nodes = [node for node in store.list_nodes() if node.node_type == "fact"]
+
+            store.upsert_node(material_node)
+            store.upsert_node(fact_node)
+            store.upsert_edge(
+                EvidenceEdge(
+                    edge_id=f"E-{material_node.node_id}-{fact_node.node_id}-source_of",
+                    source_node_id=material_node.node_id,
+                    target_node_id=fact_node.node_id,
+                    edge_type="source_of",
+                    reason="材料生成事实节点。",
+                    confidence=fact.confidence,
+                    evidence_basis=[fact.source_material_id, fact.fact_id],
+                )
+            )
+            for edge in self.relation_tool.infer_edges_for_new_node(fact_node, existing_nodes):
+                store.upsert_edge(edge)
+        return store.to_graph()
 
 
 CaseGraphAgent = EvidenceGraphAgent
+
+
+def _material_node_for_fact(fact: Fact) -> EvidenceNode:
+    return EvidenceNode(
+        node_id=f"M-{fact.source_material_id}",
+        node_type="material",
+        source_material_id=fact.source_material_id,
+        source_type=fact.source_type,
+        summary=f"材料 {fact.source_material_id}",
+        confidence=1.0,
+    )
 
 
 @dataclass(frozen=True)

@@ -39,11 +39,85 @@ class Fact:
 
 
 @dataclass(frozen=True)
+class EvidenceNode:
+    node_id: str
+    node_type: str
+    source_material_id: str
+    source_type: str
+    summary: str
+    person: str = ""
+    behavior: str = ""
+    time: str = ""
+    location: str = ""
+    object: str = ""
+    confidence: float = 0.8
+    raw_ref: str = ""
+    human_confirmed: bool = False
+    metadata: dict = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class EvidenceEdge:
+    edge_id: str
+    source_node_id: str
+    target_node_id: str
+    edge_type: str
+    reason: str
+    confidence: float = 0.8
+    evidence_basis: list[str] = field(default_factory=list)
+    metadata: dict = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
 class CaseGraph:
     facts: list[Fact] = field(default_factory=list)
+    nodes: list[EvidenceNode] = field(default_factory=list)
+    edges: list[EvidenceEdge] = field(default_factory=list)
+
+    def __post_init__(self) -> None:
+        if not self.nodes and self.facts:
+            object.__setattr__(self, "nodes", [fact_to_node(fact) for fact in self.facts])
+        if not self.facts and self.nodes:
+            object.__setattr__(
+                self,
+                "facts",
+                [node_to_fact(node) for node in self.nodes if node.node_type == "fact"],
+            )
 
 
 EvidenceGraph = CaseGraph
+
+
+def fact_to_node(fact: Fact) -> EvidenceNode:
+    return EvidenceNode(
+        node_id=fact.fact_id,
+        node_type="fact",
+        source_material_id=fact.source_material_id,
+        source_type=fact.source_type,
+        summary=fact.behavior,
+        person=fact.person,
+        behavior=fact.behavior,
+        time=fact.time,
+        location=fact.location,
+        object=fact.object,
+        confidence=fact.confidence,
+        human_confirmed=fact.human_confirmed,
+    )
+
+
+def node_to_fact(node: EvidenceNode) -> Fact:
+    return Fact(
+        fact_id=node.node_id,
+        source_material_id=node.source_material_id,
+        source_type=node.source_type,
+        person=node.person,
+        behavior=node.behavior or node.summary,
+        time=node.time,
+        location=node.location,
+        object=node.object,
+        confidence=node.confidence,
+        human_confirmed=node.human_confirmed,
+    )
 
 
 @dataclass(frozen=True)
