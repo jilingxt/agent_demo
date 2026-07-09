@@ -8,6 +8,7 @@ from typing import Any
 from langchain_core.runnables import RunnableLambda
 
 from case_agent_demo.models import EvidenceGraph, LegalMatch
+from case_agent_demo.legal_kb import LegalKnowledgeBaseTool
 
 
 DEFAULT_LEGAL_LIBRARY = Path("legal_library") / "laws.jsonl"
@@ -20,6 +21,7 @@ class LegalRetrievalTool:
     name: str = "legal_retrieval_tool"
     library_path: str | Path | None = DEFAULT_LEGAL_LIBRARY
     max_matches: int = 5
+    legal_kb: LegalKnowledgeBaseTool | None = None
 
     def __post_init__(self) -> None:
         self.library_path = Path(self.library_path) if self.library_path else None
@@ -33,6 +35,11 @@ class LegalRetrievalTool:
             behaviors = [fact.behavior for fact in graph.facts[:3]]
         behavior_text = "；".join(str(item) for item in behaviors or [])
         purpose = payload.get("purpose", "legal_basis_lookup")
+
+        if self.legal_kb is not None and graph is not None:
+            result = self.legal_kb.retrieve_for_review(case_type, graph, purpose) if "review" in purpose else self.legal_kb.retrieve_for_case(case_type, graph)
+            if result.matches:
+                return result.matches
 
         matches = self._retrieve_from_static_library(case_type, behavior_text, purpose)
         if matches:

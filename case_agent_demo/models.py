@@ -3,6 +3,18 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import StrEnum
 
+NODE_TYPE_FACT = "fact"
+NODE_TYPE_MATERIAL = "material"
+NODE_TYPE_REPORT_OPINION = "report_opinion"
+
+EDGE_TYPE_SOURCE_OF = "source_of"
+EDGE_TYPE_SAME_PERSON = "same_person"
+EDGE_TYPE_SAME_OBJECT = "same_object"
+EDGE_TYPE_SAME_EVENT = "same_event"
+EDGE_TYPE_SUPPORTS = "supports"
+EDGE_TYPE_CONTRADICTS = "contradicts"
+EDGE_TYPE_NEEDS_HUMAN_CHECK = "needs_human_check"
+
 
 class MaterialType(StrEnum):
     STATEMENT = "statement"
@@ -51,6 +63,12 @@ class EvidenceNode:
     location: str = ""
     object: str = ""
     confidence: float = 0.8
+    polarity: str = "affirm"
+    claim_type: str = ""
+    source_party: str = "unknown"
+    observation_type: str = ""
+    status: str = "active"
+    version: int = 1
     raw_ref: str = ""
     human_confirmed: bool = False
     metadata: dict = field(default_factory=dict)
@@ -65,7 +83,97 @@ class EvidenceEdge:
     reason: str
     confidence: float = 0.8
     evidence_basis: list[str] = field(default_factory=list)
+    status: str = "active"
+    version: int = 1
     metadata: dict = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class ConfidenceProfile:
+    extraction_quality: float = 0.0
+    source_reliability: float = 0.0
+    corroboration_score: float = 0.0
+    contradiction_score: float = 0.0
+    independence_score: float = 0.0
+    uncertainty: float = 0.0
+    final_score: float = 0.0
+    label: str = ""
+    reasons: list[str] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class EvidenceClaim:
+    claim_id: str
+    subject: str
+    behavior_type: str
+    object: str = ""
+    time_bucket: str = ""
+    location: str = ""
+    supporting_node_ids: list[str] = field(default_factory=list)
+    opposing_node_ids: list[str] = field(default_factory=list)
+    related_edge_ids: list[str] = field(default_factory=list)
+    confidence_profile: ConfidenceProfile | None = None
+    status: str = "active"
+    metadata: dict = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class LegalDomain:
+    domain_id: str
+    name: str
+    parent_id: str = ""
+    aliases: list[str] = field(default_factory=list)
+    keywords: list[str] = field(default_factory=list)
+    description: str = ""
+
+
+@dataclass(frozen=True)
+class DomainAffinity:
+    domain_id: str
+    score: float
+    source: str = "auto"
+    reason: str = ""
+
+
+@dataclass(frozen=True)
+class LegalDocument:
+    document_id: str
+    title: str
+    doc_type: str
+    source_path: str
+    source: str = ""
+    version: str = "v1"
+    document_hash: str = ""
+    effective_status: str = "effective"
+    domain_affinities: list[DomainAffinity] = field(default_factory=list)
+    metadata: dict = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class LegalChunk:
+    chunk_id: str
+    document_id: str
+    text: str
+    title: str = ""
+    article: str = ""
+    clause: str = ""
+    doc_type: str = ""
+    keywords: list[str] = field(default_factory=list)
+    legal_elements: list[str] = field(default_factory=list)
+    domain_affinities: list[DomainAffinity] = field(default_factory=list)
+    score: float = 0.0
+    effective_status: str = "effective"
+    metadata: dict = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class LegalRAGResult:
+    matches: list["LegalMatch"]
+    chunks: list[LegalChunk]
+    query: str
+    purpose: str
+    cache_hit: bool = False
+    query_trace: dict = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -73,6 +181,7 @@ class CaseGraph:
     facts: list[Fact] = field(default_factory=list)
     nodes: list[EvidenceNode] = field(default_factory=list)
     edges: list[EvidenceEdge] = field(default_factory=list)
+    claims: list[EvidenceClaim] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         if not self.nodes and self.facts:
@@ -91,7 +200,7 @@ EvidenceGraph = CaseGraph
 def fact_to_node(fact: Fact) -> EvidenceNode:
     return EvidenceNode(
         node_id=fact.fact_id,
-        node_type="fact",
+        node_type=NODE_TYPE_FACT,
         source_material_id=fact.source_material_id,
         source_type=fact.source_type,
         summary=fact.behavior,
@@ -101,6 +210,9 @@ def fact_to_node(fact: Fact) -> EvidenceNode:
         location=fact.location,
         object=fact.object,
         confidence=fact.confidence,
+        polarity=infer_polarity(fact.behavior),
+        claim_type=infer_claim_type(fact.behavior, fact.object),
+        observation_type=fact.source_type,
         human_confirmed=fact.human_confirmed,
     )
 
@@ -118,6 +230,29 @@ def node_to_fact(node: EvidenceNode) -> Fact:
         confidence=node.confidence,
         human_confirmed=node.human_confirmed,
     )
+
+
+def infer_polarity(text: str) -> str:
+    if any(word in text for word in ("疑似", "可能", "不确定", "无法确认")):
+        return "uncertain"
+    if any(word in text for word in ("没有", "未", "否认", "不承认", "没")):
+        return "deny"
+    return "affirm"
+
+
+def infer_claim_type(behavior: str, obj: str = "") -> str:
+    text = f"{behavior} {obj}"
+    if any(word in text for word in ("打架", "动手", "殴打", "伤害", "抱摔", "推搡", "掐脖子", "拉拽")):
+        return "violence"
+    if any(word in text for word in ("轻伤", "重伤", "骨折", "伤情", "鉴定意见", "损伤")):
+        return "injury_consequence"
+    if any(word in text for word in ("损坏", "毁坏", "砸坏", "摔坏", "破坏")):
+        return "property_damage"
+    if any(word in text for word in ("拿走", "窃取", "盗窃", "非法占有", "拿取", "偷走")):
+        return "taking_property"
+    if any(word in text for word in ("现场", "出现", "在场", "不在", "在家")):
+        return "presence"
+    return "general"
 
 
 @dataclass(frozen=True)
@@ -173,3 +308,4 @@ class WorkflowResult:
     review: ReviewResult
     evidence_graph: CaseGraph | None = None
     material_plan: object | None = None
+    validation_issues: list[object] = field(default_factory=list)

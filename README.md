@@ -1,6 +1,6 @@
 # Case Agent Demo
 
-一个用于案件笔录、图片证据、报告材料和静态法律库协同分析的多 Agent demo。
+一个用于案件笔录、图片证据、报告材料和法律知识库协同分析的多 Agent demo。当前版本为 `v0.51.0`。
 
 ## 核心能力
 
@@ -9,16 +9,19 @@
 - 使用 DeepSeek 文本模型 profile 区分高/低推理任务；
 - `TextAgent` 按单份笔录独立提取结构化事实，不把原始笔录全文写入 Case Graph；
 - `PicAgent` / `ReportImageAgent` 对图片和报告材料先提炼证据事实，再入图；
-- 构建 Case Graph；
+- 构建兼容旧接口的 EvidenceGraph，包含 facts、nodes、edges、claims；
+- 使用 ConfidenceEngine 为 EvidenceClaim 计算可解释综合置信度；
 - `ConflictAgent` 独立检测笔录、图片、报告之间的矛盾；
-- 使用静态法律库匹配法条，并避免用“手机/财物”等泛化词误命中盗窃条款；
+- 使用 LegalKnowledgeBaseTool 支持 txt/md/jsonl 入库、切片、软删除、更新和关键词检索；
+- 使用 Domain Affinity 对法律知识和案件事实进行领域相关度排序；
+- FinalConflictAgent 输出证据冲突、证据不足、法律依据缺失、报告越界、低置信图片等审查问题；
 - Judge Agent 负责反方 challenge；
 - Review Agent 负责边界复核。
 
 ## 快速运行
 
 ```powershell
-cd F:\汇报\agent_demo
+cd F:\汇报\Va1ha11a_demo
 pip install -e .
 python -m unittest discover -s tests -v
 python -m case_agent_demo.cli --sample
@@ -49,9 +52,9 @@ config/prompts/
 ## 主要文档
 
 - [环境配置](ENVIRONMENT.md)
-- [用户手册](USER_MANUAL.md)
-- [面向领导的系统使用说明](LEADER_USER_MANUAL.md)
-- [技术架构](TECHNICAL_ARCHITECTURE.md)
+- [项目介绍](项目介绍.md)
+- [用户手册](用户手册.md)
+- [技术手册](技术手册.md)
 - [流程说明](WORKFLOW.md)
 
 ## 研判报告格式
@@ -60,4 +63,4 @@ config/prompts/
 
 ## 当前法律库匹配规则
 
-`LegalRetrievalTool` 读取 `legal_library/laws.jsonl`。同类案件法条可按案件类型和关键词命中；跨类型法条需要更强行为要素。比如“摔坏手机、屏幕损坏”会优先关联故意毁坏财物类依据，不会仅因出现“手机/财物”就匹配盗窃条款。
+`LegalRetrievalTool` 仍保留旧接口，并优先调用 `LegalKnowledgeBaseTool`；如果本地法律知识库没有内容，则回退到 `legal_library/laws.jsonl`。同类案件法条可按案件类型和关键词命中；跨类型法条需要更强行为要素。

@@ -537,28 +537,32 @@ class EvidenceGraphAgent:
     def __post_init__(self) -> None:
         self.runnable = RunnableLambda(self.build)
 
+    def add_fact(self, store: GraphStoreTool, fact: Fact) -> EvidenceNode:
+        material_node = _material_node_for_fact(fact)
+        fact_node = fact_to_node(fact)
+        existing_nodes = [node for node in store.list_nodes() if node.node_type == "fact"]
+
+        store.add_node(material_node)
+        store.add_node(fact_node)
+        store.add_edge(
+            EvidenceEdge(
+                edge_id=f"E-{material_node.node_id}-{fact_node.node_id}-source_of",
+                source_node_id=material_node.node_id,
+                target_node_id=fact_node.node_id,
+                edge_type="source_of",
+                reason="材料生成事实节点。",
+                confidence=fact.confidence,
+                evidence_basis=[fact.source_material_id, fact.fact_id],
+            )
+        )
+        for edge in self.relation_tool.infer_edges_for_new_node(fact_node, existing_nodes):
+            store.add_edge(edge)
+        return fact_node
+
     def build(self, facts: list[Fact]) -> CaseGraph:
         store = GraphStoreTool()
         for fact in facts:
-            material_node = _material_node_for_fact(fact)
-            fact_node = fact_to_node(fact)
-            existing_nodes = [node for node in store.list_nodes() if node.node_type == "fact"]
-
-            store.upsert_node(material_node)
-            store.upsert_node(fact_node)
-            store.upsert_edge(
-                EvidenceEdge(
-                    edge_id=f"E-{material_node.node_id}-{fact_node.node_id}-source_of",
-                    source_node_id=material_node.node_id,
-                    target_node_id=fact_node.node_id,
-                    edge_type="source_of",
-                    reason="材料生成事实节点。",
-                    confidence=fact.confidence,
-                    evidence_basis=[fact.source_material_id, fact.fact_id],
-                )
-            )
-            for edge in self.relation_tool.infer_edges_for_new_node(fact_node, existing_nodes):
-                store.upsert_edge(edge)
+            self.add_fact(store, fact)
         return store.to_graph()
 
 
