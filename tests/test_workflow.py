@@ -194,6 +194,26 @@ class CaseWorkflowTests(unittest.TestCase):
         self.assertTrue(any(item.challenge_type == "case_type_mismatch" for item in result.challenges))
         self.assertIn("案件类型", result.final_report)
 
+    def test_judge_challenges_case_type_when_theft_type_has_only_injury_facts(self):
+        workflow = CaseWorkflow.demo()
+        materials = [
+            Material(
+                "S1",
+                MaterialType.STATEMENT,
+                "被询问人李文杰称：2026年6月12日20时许，在深圳市宝安区新凯飞汽配，我拉拽贺显作衣领并抱摔，导致贺显作鼻骨骨折。",
+            ),
+            Material(
+                "R1",
+                MaterialType.REPORT_IMAGE,
+                "法医鉴定报告：被鉴定人贺显作所受损伤为双侧鼻骨骨折、轻伤二级。鉴定意见明确。",
+            ),
+        ]
+
+        result = workflow.run(materials, confirmed_case_type="盗窃类案件")
+
+        self.assertTrue(any(item.challenge_type == "case_type_mismatch" for item in result.challenges))
+        self.assertIn("事实主题", result.final_report)
+
 
 if __name__ == "__main__":
     unittest.main()
