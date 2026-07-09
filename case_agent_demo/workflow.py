@@ -117,8 +117,6 @@ class CaseWorkflow:
 
         challenges = self.judge_agent.runnable.invoke(
             {
-                "confirmed_case_type": confirmed_case_type,
-                "evidence_graph": case_graph,
                 "case_graph": case_graph,
                 "conflicts": conflicts,
                 "legal_matches": legal_matches,

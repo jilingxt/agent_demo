@@ -797,8 +797,6 @@ class JudgeAgent:
         draft_report: str = payload["draft_report"]
         conflicts: list[Conflict] = payload["conflicts"]
         legal_matches: list[LegalMatch] = payload.get("legal_matches", [])
-        confirmed_case_type = str(payload.get("confirmed_case_type", ""))
-        graph: EvidenceGraph | None = payload.get("evidence_graph") or payload.get("case_graph")
         if not legal_matches and self.legal_tool is not None:
             legal_matches = self.legal_tool.retrieve({**payload, "purpose": "judge_legal_challenge"})
         challenges: list[Challenge] = []
@@ -813,16 +811,6 @@ class JudgeAgent:
                         severity="high",
                     )
                 )
-        if graph is not None and _case_type_mismatches_facts(confirmed_case_type, graph):
-            challenges.append(
-                Challenge(
-                    challenge_id=f"J-{len(challenges) + 1}",
-                    challenge_type="case_type_mismatch",
-                    target="confirmed_case_type",
-                    reason=f"人工确认案件类型为“{confirmed_case_type}”，但现有事实主要体现伤害、伤情或人身损害，缺少财物毁坏事实支撑，需重新核对案件类型。",
-                    severity="high",
-                )
-            )
         if any(phrase in draft_report for phrase in ("已经构成犯罪", "应当处罚", "必然构成")):
             challenges.append(
                 Challenge(
@@ -844,15 +832,6 @@ class JudgeAgent:
                 )
             )
         return challenges
-
-
-def _case_type_mismatches_facts(case_type: str, graph: EvidenceGraph) -> bool:
-    if not _has_any(case_type, ("毁坏", "损毁", "财物")):
-        return False
-    text = " ".join(f"{fact.behavior} {fact.object}" for fact in graph.facts)
-    has_injury = _has_any(text, ("轻伤", "重伤", "骨折", "殴打", "伤害", "抱摔", "拉拽", "掐脖子", "损伤"))
-    has_property_damage = _has_any(text, ("毁坏", "损坏", "摔坏", "砸坏", "门锁", "屏幕损坏", "财物受损"))
-    return has_injury and not has_property_damage
 
 
 @dataclass
