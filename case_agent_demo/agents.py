@@ -813,14 +813,13 @@ class JudgeAgent:
                         severity="high",
                     )
                 )
-        mismatch = _case_type_fact_mismatch(confirmed_case_type, graph) if graph is not None else ""
-        if mismatch:
+        if graph is not None and _case_type_mismatches_facts(confirmed_case_type, graph):
             challenges.append(
                 Challenge(
                     challenge_id=f"J-{len(challenges) + 1}",
                     challenge_type="case_type_mismatch",
                     target="confirmed_case_type",
-                    reason=mismatch,
+                    reason=f"人工确认案件类型为“{confirmed_case_type}”，但现有事实主要体现伤害、伤情或人身损害，缺少财物毁坏事实支撑，需重新核对案件类型。",
                     severity="high",
                 )
             )
@@ -847,51 +846,13 @@ class JudgeAgent:
         return challenges
 
 
-CASE_FACT_PROFILES: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
-    "injury": (("伤害", "殴打", "斗殴", "寻衅滋事"), ("轻伤", "重伤", "骨折", "殴打", "伤害", "抱摔", "拉拽", "掐脖子", "损伤")),
-    "property_damage": (("毁坏", "损毁", "损坏财物", "故意毁坏财物"), ("毁坏", "损坏", "摔坏", "砸坏", "门锁", "屏幕损坏", "财物受损")),
-    "theft": (("盗窃", "偷盗", "扒窃", "窃取"), ("盗窃", "偷", "窃取", "拿走", "秘密窃取", "非法占有", "扒窃")),
-    "fraud": (("诈骗", "欺诈"), ("诈骗", "虚构事实", "隐瞒真相", "骗取", "转账", "刷单", "投资返利")),
-    "drug": (("毒品", "贩毒", "吸毒"), ("毒品", "甲基苯丙胺", "冰毒", "海洛因", "贩卖", "吸食", "尿检")),
-    "traffic": (("交通", "危险驾驶", "醉驾", "酒驾"), ("驾驶", "酒精", "醉酒", "血液乙醇", "交通事故", "机动车")),
-    "gambling": (("赌博", "开设赌场"), ("赌博", "赌资", "下注", "赌场", "抽头", "参赌")),
-}
-
-
-def _case_type_fact_mismatch(case_type: str, graph: EvidenceGraph) -> str:
-    expected = _matching_profiles(case_type)
-    if not expected:
-        return ""
-    fact_text = " ".join(f"{fact.behavior} {fact.object}" for fact in graph.facts)
-    observed = _matching_profiles(fact_text, use_case_terms=False)
-    if not observed or observed & expected:
-        return ""
-    return (
-        f"人工确认案件类型为“{case_type}”，但现有事实主题主要体现{_profile_names(observed)}，"
-        f"未发现足以支撑{_profile_names(expected)}的关键事实主题，需重新核对案件类型。"
-    )
-
-
-def _matching_profiles(text: str, use_case_terms: bool = True) -> set[str]:
-    matches: set[str] = set()
-    for profile, (case_terms, fact_terms) in CASE_FACT_PROFILES.items():
-        terms = case_terms if use_case_terms else fact_terms
-        if _has_any(text, terms):
-            matches.add(profile)
-    return matches
-
-
-def _profile_names(profiles: set[str]) -> str:
-    names = {
-        "injury": "伤害/伤情",
-        "property_damage": "财物毁坏",
-        "theft": "盗窃/非法占有",
-        "fraud": "诈骗",
-        "drug": "毒品",
-        "traffic": "交通/危险驾驶",
-        "gambling": "赌博",
-    }
-    return "、".join(names[item] for item in sorted(profiles))
+def _case_type_mismatches_facts(case_type: str, graph: EvidenceGraph) -> bool:
+    if not _has_any(case_type, ("毁坏", "损毁", "财物")):
+        return False
+    text = " ".join(f"{fact.behavior} {fact.object}" for fact in graph.facts)
+    has_injury = _has_any(text, ("轻伤", "重伤", "骨折", "殴打", "伤害", "抱摔", "拉拽", "掐脖子", "损伤"))
+    has_property_damage = _has_any(text, ("毁坏", "损坏", "摔坏", "砸坏", "门锁", "屏幕损坏", "财物受损"))
+    return has_injury and not has_property_damage
 
 
 @dataclass
