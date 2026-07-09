@@ -150,3 +150,95 @@ confidence
 - Review 拦截最终性法律判断和超出证据/法条边界的表述；
 - API key 只放在 `config/api_keys.toml`；
 - Prompt 放在 `config/prompts/`，不硬编码在 Agent 中。
+
+## 11. 本次更新说明（v0.51）
+
+本次 v0.51 更新是在原有多 Agent 案件证据分析流程上，增加“证据图谱、事实主张、置信度、法律知识库和最终冲突审查”能力。原有 `Fact`、`LegalRetrievalTool.retrieve(payload)`、工作流输出结构和既有 Agent 入口仍保留，确保旧流程可以继续运行。
+
+### 11.1 使用的主要技术
+
+本项目仍采用 Python 作为主体语言，使用标准库 `dataclasses` 定义结构化数据模型，用 `unittest` 做回归测试，用本地 JSONL 文件保存轻量索引和知识库数据。项目不依赖外部向量数据库，不把真实 API key 写入代码或文档。
+
+LLM 接入仍保持 OpenAI-compatible API 方式：
+
+- DeepSeek 文本模型：用于笔录提炼、冲突分析、辅助推理、报告草拟和复核；
+- Qwen 视觉模型：用于图片证据、报告图片、扫描材料的视觉理解；
+- 本地 fallback 规则：在没有真实模型或模型返回异常时，保证 demo 流程仍可运行。
+
+法律知识检索从单一静态 `legal_library/laws.jsonl` 扩展为两层结构：
+
+- `LegalKnowledgeBaseTool`：支持 `.txt`、`.md`、旧版 `.jsonl` 文件入库，生成本地 `documents.jsonl` 和 `chunks.jsonl` 索引；
+- `LegalRetrievalTool`：继续保留旧接口，优先调用 `LegalKnowledgeBaseTool`，知识库为空时回退到原静态法律库。
+
+### 11.2 EvidenceGraph 与 EvidenceClaim
+
+v0.51 对 `EvidenceNode` 和 `EvidenceEdge` 增加了更多审查字段，例如：
+
+- `polarity`：事实倾向，区分肯定、否认等；
+- `claim_type`：主张类型，例如伤害、财产损毁、盗窃、程序审查等；
+- `source_party`：事实来源方；
+- `observation_type`：事实来源类型，如笔录、图片、报告；
+- `status` 和 `version`：为后续人工修订、软删除和版本追踪预留。
+
+新增 `EvidenceClaim` 用于把多个证据节点聚合成“一个待审查事实主张”。例如，多份笔录、图片说明、鉴定报告都指向同一伤害事实时，会被汇总到同一个 claim；否认类陈述会作为反向证据进入同一 claim。
+
+### 11.3 ConfidenceEngine 置信度计算
+
+新增 `ConfidenceEngine`，用于给 claim 级事实生成综合置信度。它不是司法证明概率，也不是最终裁判结论，而是一个辅助排序和风险提示指标。
+
+计算时主要考虑：
+
+- 支持证据数量；
+- 反向证据数量；
+- 证据来源可靠性，例如报告类材料通常高于普通陈述；
+- 来源是否多元；
+- 是否存在相互冲突或低质量材料。
+
+输出结果包括：
+
+- `score`：0 到 1 的数值；
+- `label`：如“多源较强印证”“有一定印证”“争议事实，尚不足以否定”“明显存疑，需补强”等；
+- `reasons`：简要解释评分依据。
+
+### 11.4 LegalKnowledgeBaseTool 与领域亲和度
+
+新增 `legal_kb.py` 和 `domain_affinity.py`：
+
+- `LegalKnowledgeBaseTool` 负责本地法律知识文件入库、切片、更新、软删除和检索；
+- `DomainAffinityIndexer` 根据关键词和文本内容计算法律领域亲和度；
+- `CaseDomainRouter` 根据案件类型和证据图谱推断检索优先领域。
+
+当前实现是轻量关键词检索和领域加权，不是完整向量 RAG。后续如果接入 embedding、rerank 或向量数据库，可以优先接在 `LegalKnowledgeBaseTool.search()` 后面，不需要改动旧工作流入口。
+
+### 11.5 FinalConflictAgent 最终审查
+
+新增 `FinalConflictAgent`，位于报告生成前后的边界审查环节。它统一识别：
+
+- 证据之间存在直接冲突；
+- claim 置信度不足；
+- 法律依据缺失；
+- 报告表述超出证据或法条边界；
+- 图片类证据置信度偏低，需要人工核验。
+
+该模块输出 `ValidationIssue`，并兼容转换为原来的 `Challenge`，所以旧的 Judge/Review 机制仍然可以继续使用。
+
+### 11.6 v0.51 后的主要流程
+
+```mermaid
+flowchart TD
+  A["证据材料"] --> B["Planning Agent"]
+  B --> C["Text / Pic / Report Agent"]
+  C --> D["GraphStore 增量写入节点和边"]
+  D --> E["EvidenceGraph"]
+  E --> F["ClaimBuilder 聚合 EvidenceClaim"]
+  F --> G["ConfidenceEngine 计算 claim 置信度"]
+  E --> H["LegalKnowledgeBaseTool 检索法律依据"]
+  G --> I["Reasoning / Judge / Review"]
+  H --> I
+  I --> J["FinalConflictAgent 最终审查"]
+  J --> K["辅助分析报告和审查问题"]
+```
+
+### 11.7 仍然保留的边界
+
+v0.51 仍是 demo 级实现，不输出最终定罪或裁判结论。系统只做材料整理、事实抽取、矛盾提示、法律依据辅助检索和报告边界审查。案件类型确认、事实采信、法律定性和处理决定必须由具备权限的人员完成。
