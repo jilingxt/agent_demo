@@ -3,50 +3,35 @@
   "version": "1",
   "calibration_status": "expert_prior",
   "nodes": [
-    {
-      "id": "violent_action",
-      "type": "prior",
-      "prior": 0.2
-    },
-    {
-      "id": "injury_grade",
-      "type": "noisy_or",
-      "parents": ["violent_action"],
-      "leak": 0.1,
-      "weights": {
-        "violent_action": 0.6
-      }
-    },
-    {
-      "id": "mechanism_consistency",
-      "type": "prior",
-      "prior": 0.35
-    },
-    {
-      "id": "temporal_consistency",
-      "type": "prior",
-      "prior": 0.35
-    },
-    {
-      "id": "alternative_cause",
-      "type": "prior",
-      "prior": 0.2
-    },
+    {"id": "actor_present", "type": "prior", "prior": 0.2},
+    {"id": "physical_contact", "type": "prior", "prior": 0.15},
+    {"id": "violent_action", "type": "prior", "prior": 0.1},
+    {"id": "injury_exists", "type": "prior", "prior": 0.2},
+    {"id": "injury_grade", "type": "prior", "prior": 0.1},
+    {"id": "mechanism_consistency", "type": "prior", "prior": 0.35},
+    {"id": "temporal_consistency", "type": "prior", "prior": 0.35},
+    {"id": "alternative_cause", "type": "prior", "prior": 0.2},
     {
       "id": "causation",
       "type": "logistic",
       "parents": [
+        "actor_present",
+        "physical_contact",
         "violent_action",
+        "injury_exists",
         "injury_grade",
         "mechanism_consistency",
         "temporal_consistency",
         "alternative_cause"
       ],
-      "intercept": -3.0,
+      "intercept": -3.4,
       "weights": {
-        "violent_action": 2.6,
-        "injury_grade": 1.7,
-        "mechanism_consistency": 1.2,
+        "actor_present": 0.4,
+        "physical_contact": 1.0,
+        "violent_action": 2.2,
+        "injury_exists": 0.8,
+        "injury_grade": 0.6,
+        "mechanism_consistency": 1.4,
         "temporal_consistency": 1.1,
         "alternative_cause": -2.5
       }

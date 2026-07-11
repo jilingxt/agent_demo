@@ -25,6 +25,23 @@ class BayesianInferenceEngineTests(unittest.TestCase):
 
         self.assertGreater(supported, baseline)
 
+    def test_intentional_injury_model_exposes_the_full_claim_chain(self):
+        values = self.engine.infer({})["node_values"]
+
+        self.assertTrue(
+            {
+                "actor_present",
+                "physical_contact",
+                "violent_action",
+                "injury_exists",
+                "injury_grade",
+                "mechanism_consistency",
+                "temporal_consistency",
+                "alternative_cause",
+                "causation",
+            }.issubset(values)
+        )
+
     def test_causation_falls_when_alternative_cause_evidence_increases(self):
         supported = {
             "violent_action": 0.9,
