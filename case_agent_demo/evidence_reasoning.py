@@ -276,6 +276,7 @@ class AssertionNormalizer:
             **node.metadata,
             "extraction_quality": node.metadata.get("extraction_quality", node.confidence),
             "source_type": node.source_type,
+            "source_material_id": node.source_material_id,
         }
         actor = metadata.get("actor", node.person)
         predicate = metadata.get("predicate") or node.claim_type or infer_claim_type(node.behavior or node.summary, node.object)

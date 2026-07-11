@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
@@ -305,6 +305,18 @@ def _summarize_report_fact(material: Material, content: str, confidence: float) 
         location=_find_location(content),
         object=obj,
         confidence=confidence,
+        metadata={
+            "actor": victim,
+            "target_person": victim,
+            "predicate": "injury_grade",
+            "event_id": material.material_id,
+            "stance": "affirm",
+            "source_group": material.material_id,
+            "origin_evidence": material.material_id,
+            "authority_candidate": True,
+        }
+        if "鉴定意见" in content or "轻伤" in content
+        else {},
     )
 
 
@@ -365,9 +377,11 @@ def _reasoning_user_input(payload: dict[str, Any]) -> str:
     )
     law_lines = "\n".join(f"{law.law_id}|{law.law_name}|{law.article}|{law.legal_element}" for law in laws)
     conflict_lines = "\n".join(f"{item.conflict_id}|{item.conflict_type}|{item.source_a}|{item.source_b}|{item.severity}" for item in conflicts)
+    assessment_lines = _claim_assessment_text(payload)
     return (
         f"confirmed_case_type: {payload['confirmed_case_type']}\n\n"
         f"case_graph_facts:\n{fact_lines}\n\n"
+        f"claim_assessments:\n{assessment_lines}\n\n"
         f"legal_matches:\n{law_lines}\n\n"
         f"conflicts:\n{conflict_lines}"
     )
@@ -375,6 +389,47 @@ def _reasoning_user_input(payload: dict[str, Any]) -> str:
 
 def _reasoning_fallback(payload: dict[str, Any]) -> str:
     return ReasoningAgent().reason(payload)
+
+
+def _claim_assessment_text(payload: dict[str, Any]) -> str:
+    assessments = payload.get("claim_assessments") or []
+    if not assessments:
+        return "未提供 Claim 级评估。"
+    return "\n".join(
+        f"{item.claim_id}|status={item.status}|support_index={item.support_index}|"
+        f"reasons={'；'.join(item.reasons)}"
+        for item in assessments
+    )
+
+
+def _node_assessment_status(payload: dict[str, Any]) -> dict[str, str]:
+    graph: EvidenceGraph = payload["evidence_graph"]
+    status_by_claim = {
+        item.claim_id: item.status
+        for item in payload.get("claim_assessments") or []
+    }
+    result: dict[str, str] = {}
+    for claim in graph.claims:
+        status = status_by_claim.get(claim.claim_id, "")
+        for node_id in (
+            claim.supporting_node_ids
+            + claim.opposing_node_ids
+            + claim.ambiguous_node_ids
+        ):
+            result[node_id] = status
+    return result
+
+
+def _fact_assessment_prefix(status: str) -> str:
+    return {
+        "authority_anchored": "权威材料支持",
+        "supported": "现有材料支持",
+        "contested": "争议材料（尚不能作为确定事实）",
+        "contested_but_not_refuted": "争议材料（尚不能作为确定事实）",
+        "insufficient": "证据不足（待补强）",
+        "opposing_dominant": "反向证据占优（不得作为确定事实）",
+        "authority_contested": "权威意见存在争议",
+    }.get(status, "待评估材料")
 
 
 def _facts_from_json(data: dict[str, Any], material: Material) -> list[Fact]:
@@ -744,8 +799,10 @@ class ReasoningAgent:
         laws: list[LegalMatch] = payload["legal_matches"]
         conflicts: list[Conflict] = payload["conflicts"]
         case_type = payload["confirmed_case_type"]
+        status_by_node = _node_assessment_status(payload)
         fact_lines = "\n".join(
-            f"- {fact.person or '未识别人员'}：{fact.behavior}（来源 {fact.source_material_id}）"
+            f"- {_fact_assessment_prefix(status_by_node.get(fact.fact_id, ''))}："
+            f"{fact.person or '未识别人员'}：{fact.behavior}（来源 {fact.source_material_id}）"
             for fact in graph.facts
         )
         time_location_lines = "\n".join(

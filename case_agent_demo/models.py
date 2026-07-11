@@ -48,6 +48,7 @@ class Fact:
     object: str = ""
     confidence: float = 0.8
     human_confirmed: bool = False
+    metadata: dict = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -172,6 +173,9 @@ class ClaimAssessment:
     status: str = "unassessed"
     reasons: list[str] = field(default_factory=list)
     authority_assessments: list[AuthorityAssessment] = field(default_factory=list)
+    support_index: float = 0.0
+    bayesian_posterior: float | None = None
+    bayesian_model_version: str = ""
 
 
 @dataclass(frozen=True)
@@ -271,6 +275,7 @@ def fact_to_node(fact: Fact) -> EvidenceNode:
         claim_type=infer_claim_type(fact.behavior, fact.object),
         observation_type=fact.source_type,
         human_confirmed=fact.human_confirmed,
+        metadata=dict(fact.metadata),
     )
 
 
@@ -286,13 +291,18 @@ def node_to_fact(node: EvidenceNode) -> Fact:
         object=node.object,
         confidence=node.confidence,
         human_confirmed=node.human_confirmed,
+        metadata=dict(node.metadata),
     )
 
 
 def infer_polarity(text: str) -> str:
     if any(word in text for word in ("疑似", "可能", "不确定", "无法确认")):
         return "uncertain"
-    if any(word in text for word in ("没有", "未", "否认", "不承认", "没")):
+    denial_phrases = (
+        "没有", "否认", "不承认", "没打", "没拿", "没去",
+        "未实施", "未到场", "未拿取", "未发现", "尚未",
+    )
+    if any(phrase in text for phrase in denial_phrases):
         return "deny"
     return "affirm"
 
@@ -366,3 +376,8 @@ class WorkflowResult:
     evidence_graph: CaseGraph | None = None
     material_plan: object | None = None
     validation_issues: list[object] = field(default_factory=list)
+    assertions: list[EvidenceAssertion] = field(default_factory=list)
+    claim_assessments: list[ClaimAssessment] = field(default_factory=list)
+    bayesian_result: dict | None = None
+    reasoning_trace: dict = field(default_factory=dict)
+    model_versions: dict = field(default_factory=dict)

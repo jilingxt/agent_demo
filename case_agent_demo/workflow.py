@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 
 from case_agent_demo.agents import (
@@ -15,6 +16,7 @@ from case_agent_demo.agents import (
 )
 from case_agent_demo.confidence import ClaimBuilder, ConfidenceEngine
 from case_agent_demo.config import ModelProfiles
+from case_agent_demo.evidence_reasoning_engine import EvidenceReasoningEngine
 from case_agent_demo.final_conflict_agent import FinalConflictAgent, issues_to_challenges
 from case_agent_demo.graph_store import GraphStoreTool
 from case_agent_demo.legal_kb import LegalKnowledgeBaseTool
@@ -48,6 +50,7 @@ class CaseWorkflow:
     legal_kb: LegalKnowledgeBaseTool = field(default_factory=LegalKnowledgeBaseTool)
     claim_builder: ClaimBuilder = field(default_factory=ClaimBuilder)
     confidence_engine: ConfidenceEngine = field(default_factory=ConfidenceEngine)
+    evidence_reasoning_engine: EvidenceReasoningEngine = field(default_factory=EvidenceReasoningEngine)
     final_conflict_agent: FinalConflictAgent = field(default_factory=FinalConflictAgent)
     reasoning_agent: ReasoningAgent = field(default_factory=ReasoningAgent)
     judge_agent: JudgeAgent = field(default_factory=JudgeAgent)
@@ -68,7 +71,12 @@ class CaseWorkflow:
     def suggest_case_type(self, materials: list[Material]) -> CaseTypeSuggestion:
         return self.planning_agent.suggest(materials)
 
-    def run(self, materials: list[Material], confirmed_case_type: str | None = None) -> WorkflowResult:
+    def run(
+        self,
+        materials: list[Material],
+        confirmed_case_type: str | None = None,
+        authority_verifications: Sequence[Mapping] | Mapping[str, Mapping] | None = None,
+    ) -> WorkflowResult:
         if not confirmed_case_type:
             raise HumanConfirmationRequired("人工确认案件定性后，才能开始 agent 规划和执行。")
 
@@ -112,10 +120,17 @@ class CaseWorkflow:
                 executed_agents.append("report_image_agent")
 
         raw_graph = graph_store.to_graph()
-        claims = self.claim_builder.build_claims(raw_graph)
-        scored_claims = self.confidence_engine.score_claims(CaseGraph(nodes=raw_graph.nodes, edges=raw_graph.edges, claims=claims))
-        case_graph = CaseGraph(nodes=raw_graph.nodes, edges=raw_graph.edges, claims=scored_claims)
-        executed_agents.append("case_graph_agent")
+        reasoning_result = self.evidence_reasoning_engine.evaluate(
+            case_type=confirmed_case_type,
+            evidence_graph=raw_graph,
+            authority_verifications=authority_verifications,
+        )
+        case_graph = CaseGraph(
+            nodes=raw_graph.nodes,
+            edges=raw_graph.edges,
+            claims=reasoning_result.claims,
+        )
+        executed_agents.extend(["case_graph_agent", "evidence_reasoning_engine"])
 
         conflicts = self.conflict_agent.runnable.invoke(case_graph)
         executed_agents.append("conflict_agent")
@@ -131,6 +146,8 @@ class CaseWorkflow:
                 "evidence_graph": case_graph,
                 "legal_matches": legal_matches,
                 "conflicts": conflicts,
+                "claim_assessments": reasoning_result.claim_assessments,
+                "bayesian_result": reasoning_result.bayesian_result,
             }
         )
         executed_agents.append("reasoning_agent")
@@ -139,6 +156,8 @@ class CaseWorkflow:
             {
                 "case_graph": case_graph,
                 "conflicts": conflicts,
+                "claim_assessments": reasoning_result.claim_assessments,
+                "bayesian_result": reasoning_result.bayesian_result,
                 "legal_matches": legal_matches,
                 "draft_report": draft_report,
             }
@@ -150,6 +169,8 @@ class CaseWorkflow:
             case_graph,
             draft_report,
             legal_rag_result,
+            claim_assessments=reasoning_result.claim_assessments,
+            bayesian_result=reasoning_result.bayesian_result,
         )
         challenges = [*challenges, *issues_to_challenges(validation_issues)]
         executed_agents.append("final_conflict_agent")
@@ -181,6 +202,11 @@ class CaseWorkflow:
             evidence_graph=case_graph,
             material_plan=material_plan,
             validation_issues=validation_issues,
+            assertions=reasoning_result.assertions,
+            claim_assessments=reasoning_result.claim_assessments,
+            bayesian_result=reasoning_result.bayesian_result,
+            reasoning_trace=reasoning_result.reasoning_trace,
+            model_versions=reasoning_result.model_versions,
         )
 
 

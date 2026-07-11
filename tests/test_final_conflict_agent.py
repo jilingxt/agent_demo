@@ -2,7 +2,15 @@ import unittest
 
 from case_agent_demo.confidence import ConfidenceEngine
 from case_agent_demo.final_conflict_agent import FinalConflictAgent, issues_to_challenges
-from case_agent_demo.models import CaseGraph, EvidenceEdge, Fact, LegalRAGResult
+from case_agent_demo.models import (
+    CaseGraph,
+    ClaimAssessment,
+    ClaimOpinion,
+    EvidenceClaim,
+    EvidenceEdge,
+    Fact,
+    LegalRAGResult,
+)
 
 
 class FinalConflictAgentTests(unittest.TestCase):
@@ -28,6 +36,39 @@ class FinalConflictAgentTests(unittest.TestCase):
         self.assertIn("image_evidence_low_confidence", issue_types)
         self.assertTrue(all(issue.required_action for issue in issues))
         self.assertTrue(challenges)
+
+    def test_claim_assessments_and_bayesian_causation_drive_challenges(self):
+        injury_claim = EvidenceClaim("C-INJURY", "李四", "injury_grade")
+        violence_claim = EvidenceClaim("C-VIOLENCE", "张三", "violence", target_person="李四")
+        graph = CaseGraph(claims=[injury_claim, violence_claim])
+        assessments = [
+            ClaimAssessment(
+                claim_id="C-INJURY",
+                status="authority_anchored",
+                opinion=ClaimOpinion("C-INJURY", support=0.95, uncertainty=0.05),
+            ),
+            ClaimAssessment(
+                claim_id="C-VIOLENCE",
+                status="contested",
+                opinion=ClaimOpinion(
+                    "C-VIOLENCE", support=0.4, opposition=0.3, uncertainty=0.3, conflict=0.8
+                ),
+            ),
+        ]
+        rag = LegalRAGResult(matches=[], chunks=[], query="", purpose="final_review")
+
+        issues = FinalConflictAgent().review(
+            "故意伤害",
+            graph,
+            "",
+            rag,
+            claim_assessments=assessments,
+            bayesian_result={"node_values": {"causation": 0.35}},
+        )
+
+        issue_types = {issue.issue_type for issue in issues}
+        self.assertIn("contested_but_not_refuted", issue_types)
+        self.assertIn("causation_insufficient", issue_types)
 
 
 if __name__ == "__main__":
