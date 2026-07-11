@@ -20,7 +20,44 @@ class WorkflowIncrementalGraphTests(unittest.TestCase):
         self.assertTrue(any(edge.edge_type == "source_of" for edge in result.case_graph.edges))
         self.assertTrue(any(edge.edge_type in {"same_person", "same_object", "supports"} for edge in result.case_graph.edges))
         self.assertTrue(result.case_graph.claims)
-        self.assertIn("case_graph_agent", result.executed_agents)
+        self.assertTrue(result.assertions)
+        self.assertTrue(result.claim_assessments)
+        self.assertIsNone(result.bayesian_result)
+        self.assertIn("evidence_reasoning_engine", result.executed_agents)
+
+
+    def test_workflow_accepts_explicit_authority_verification_for_forensic_report(self):
+        workflow = CaseWorkflow.demo()
+        materials = [
+            Material(
+                "R1",
+                MaterialType.REPORT_IMAGE,
+                "司法鉴定意见书。被鉴定人：李四。鉴定意见：所受损伤为轻伤二级。",
+            )
+        ]
+        verification = {
+            "issuer": "qualified_forensic_institution",
+            "document_type": "forensic_injury_grade_report",
+            "competence_verified": True,
+            "authenticity_verified": True,
+            "procedure_verified": True,
+            "subject_identity_verified": True,
+            "method_verified": True,
+            "standard_verified": True,
+            "scope_verified": True,
+            "human_verified": True,
+        }
+
+        result = workflow.run(
+            materials,
+            confirmed_case_type="故意伤害",
+            authority_verifications={"F-R1-REPORT": verification},
+        )
+
+        self.assertTrue(
+            any(item.status == "authority_anchored" for item in result.claim_assessments)
+        )
+        self.assertIsNotNone(result.bayesian_result)
 
 
 if __name__ == "__main__":
