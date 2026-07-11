@@ -215,6 +215,7 @@ class SubjectiveEvidenceEngine:
             if (
                 authority.status not in {"authority_valid", "authority_contested"}
                 or assertion.predicate != claim.behavior_type
+                or not _assertion_matches_claim(assertion, claim)
                 or stance not in {"affirm", "deny"}
             ):
                 continue

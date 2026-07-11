@@ -22,11 +22,21 @@ VERIFIED_FORENSIC_METADATA = {
 }
 
 
-def forensic_assertion(assertion_id="A-forensic", stance="affirm", **metadata):
+def forensic_assertion(
+    assertion_id="A-forensic",
+    stance="affirm",
+    actor="victim-a",
+    target_person="",
+    event_id="",
+    **metadata,
+):
     return EvidenceAssertion(
         assertion_id=assertion_id,
         node_id=assertion_id,
+        actor=actor,
         predicate="injury_grade",
+        target_person=target_person,
+        event_id=event_id,
         stance=stance,
         source_group=assertion_id,
         origin_evidence=assertion_id,
@@ -129,6 +139,36 @@ class AuthorityReasoningTests(unittest.TestCase):
         )
 
         assessment = self.engine.evaluate(violence_claim, [injury_assertion])
+
+        self.assertEqual(assessment.opinion.support, 0.0)
+        self.assertEqual(assessment.status, "unassessed")
+
+    def test_authority_anchor_does_not_cross_injury_grade_target(self):
+        assertion = forensic_assertion(target_person="victim-a", event_id="event-a")
+        claim = EvidenceClaim(
+            "CL-injury-grade-victim-b",
+            "victim-a",
+            "injury_grade",
+            target_person="victim-b",
+            event_id="event-a",
+        )
+
+        assessment = self.engine.evaluate(claim, [assertion])
+
+        self.assertEqual(assessment.opinion.support, 0.0)
+        self.assertEqual(assessment.status, "unassessed")
+
+    def test_authority_anchor_does_not_cross_injury_grade_event(self):
+        assertion = forensic_assertion(target_person="victim-a", event_id="event-a")
+        claim = EvidenceClaim(
+            "CL-injury-grade-event-b",
+            "victim-a",
+            "injury_grade",
+            target_person="victim-a",
+            event_id="event-b",
+        )
+
+        assessment = self.engine.evaluate(claim, [assertion])
 
         self.assertEqual(assessment.opinion.support, 0.0)
         self.assertEqual(assessment.status, "unassessed")
