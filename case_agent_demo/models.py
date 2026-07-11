@@ -115,6 +115,44 @@ class EvidenceClaim:
     confidence_profile: ConfidenceProfile | None = None
     status: str = "active"
     metadata: dict = field(default_factory=dict)
+    target_person: str = ""
+    event_id: str = ""
+    assertion_ids: list[str] = field(default_factory=list)
+    ambiguous_node_ids: list[str] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class EvidenceAssertion:
+    assertion_id: str
+    node_id: str
+    declarant: str = ""
+    actor: str = ""
+    predicate: str = "general"
+    target_person: str = ""
+    object: str = ""
+    event_id: str = ""
+    stance: str = "ambiguous"
+    modality: str = ""
+    source_group: str = ""
+    origin_evidence: str = ""
+    metadata: dict = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class ClaimOpinion:
+    claim_id: str
+    support: float = 0.0
+    opposition: float = 0.0
+    uncertainty: float = 1.0
+    conflict: float = 0.0
+
+
+@dataclass(frozen=True)
+class ClaimAssessment:
+    claim_id: str
+    opinion: ClaimOpinion | None = None
+    status: str = "unassessed"
+    reasons: list[str] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
