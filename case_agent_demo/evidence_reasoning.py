@@ -1,10 +1,20 @@
 from __future__ import annotations
 
+import json
 import math
 import re
 from dataclasses import replace
+from pathlib import Path
 
-from case_agent_demo.models import ClaimAssessment, ClaimOpinion, EvidenceAssertion, EvidenceClaim, EvidenceGraph, infer_claim_type
+from case_agent_demo.models import (
+    AuthorityAssessment,
+    ClaimAssessment,
+    ClaimOpinion,
+    EvidenceAssertion,
+    EvidenceClaim,
+    EvidenceGraph,
+    infer_claim_type,
+)
 
 
 QUALITY_DIMENSION_WEIGHTS = {
@@ -28,6 +38,80 @@ SOURCE_TYPE_QUALITY = {
     "manual_verified": 0.95,
 }
 
+_AUTHORITY_RULES_PATH = Path(__file__).resolve().parents[1] / "config" / "authority_rules.json"
+_VERIFICATION_FIELDS = (
+    "competence_verified",
+    "authenticity_verified",
+    "procedure_verified",
+    "subject_identity_verified",
+    "method_verified",
+    "standard_verified",
+    "scope_verified",
+)
+
+
+class AuthorityValidator:
+    def __init__(self, rules_path: str | Path | None = None):
+        path = Path(rules_path) if rules_path is not None else _AUTHORITY_RULES_PATH
+        self.rules = json.loads(path.read_text(encoding="utf-8")).get("rules", [])
+
+    def validate(self, assertion: EvidenceAssertion) -> AuthorityAssessment:
+        metadata = assertion.metadata.get("authority")
+        if not isinstance(metadata, dict):
+            return AuthorityAssessment(reasons=["no explicit authority metadata"])
+
+        issuer = _text_value(metadata.get("issuer"))
+        document_type = _text_value(metadata.get("document_type"))
+        verification = {field: metadata.get(field) is True for field in _VERIFICATION_FIELDS}
+        defeater = metadata.get("defeater") is True
+        rule = self._matching_rule(issuer, document_type)
+        if rule is None:
+            return AuthorityAssessment(
+                issuer=issuer,
+                document_type=document_type,
+                defeater=defeater,
+                reasons=["issuer and document type do not match an authority rule"],
+                **verification,
+            )
+
+        missing = [field for field in _VERIFICATION_FIELDS if not verification[field]]
+        if rule.get("requires_human_verification") and metadata.get("human_verified") is not True:
+            missing.append("human_verified")
+        if missing:
+            return AuthorityAssessment(
+                issuer=issuer,
+                document_type=document_type,
+                defeater=defeater,
+                reasons=[f"missing explicit verification: {', '.join(missing)}"],
+                **verification,
+            )
+        if assertion.predicate not in rule.get("predicates", []):
+            return AuthorityAssessment(
+                issuer=issuer,
+                document_type=document_type,
+                defeater=defeater,
+                status="out_of_scope",
+                reasons=["assertion predicate is outside the configured authority scope"],
+                **verification,
+            )
+
+        return AuthorityAssessment(
+            issuer=issuer,
+            document_type=document_type,
+            defeater=defeater,
+            status="authority_contested" if defeater else "authority_valid",
+            mean=float(rule["mean"]),
+            strength=float(rule["strength"]),
+            reasons=["explicit verification satisfies the configured authority rule"],
+            **verification,
+        )
+
+    def _matching_rule(self, issuer: str, document_type: str) -> dict | None:
+        for rule in self.rules:
+            if issuer in rule.get("issuers", []) and document_type in rule.get("document_types", []):
+                return rule
+        return None
+
 
 class EvidenceQualityEvaluator:
     def evaluate(self, assertion: EvidenceAssertion, claim: EvidenceClaim) -> float:
@@ -50,14 +134,31 @@ class EvidenceQualityEvaluator:
 class SubjectiveEvidenceEngine:
     _BASE_RATE_EVIDENCE = 2.0
 
-    def __init__(self, quality_evaluator: EvidenceQualityEvaluator | None = None):
+    def __init__(
+        self,
+        quality_evaluator: EvidenceQualityEvaluator | None = None,
+        authority_validator: AuthorityValidator | None = None,
+    ):
         self.quality_evaluator = quality_evaluator or EvidenceQualityEvaluator()
+        self.authority_validator = authority_validator or AuthorityValidator()
 
     def evaluate(self, claim: EvidenceClaim, assertions: list[EvidenceAssertion]) -> ClaimAssessment:
-        support = self._strongest_strengths(claim, assertions, "affirm")
-        opposition = self._strongest_strengths(claim, assertions, "deny")
-        positive_evidence = sum(support)
-        negative_evidence = sum(opposition)
+        authority_assessments = [(assertion, self.authority_validator.validate(assertion)) for assertion in assertions]
+        authority_assertion_ids = {
+            assertion.assertion_id
+            for assertion, authority in authority_assessments
+            if authority.status in {"authority_valid", "authority_contested"}
+        }
+        ordinary_assertions = [
+            assertion for assertion in assertions if assertion.assertion_id not in authority_assertion_ids
+        ]
+        support = self._strongest_strengths(claim, ordinary_assertions, "affirm")
+        opposition = self._strongest_strengths(claim, ordinary_assertions, "deny")
+        authority_support, authority_opposition, applicable_authorities = self._authority_evidence(
+            claim, authority_assessments
+        )
+        positive_evidence = sum(support) + authority_support
+        negative_evidence = sum(opposition) + authority_opposition
         total = positive_evidence + negative_evidence + self._BASE_RATE_EVIDENCE
         opinion = ClaimOpinion(
             claim_id=claim.claim_id,
@@ -68,14 +169,57 @@ class SubjectiveEvidenceEngine:
             if positive_evidence + negative_evidence
             else 0.0,
         )
-        ambiguous_count = sum(1 for assertion in assertions if _normalize_stance(assertion.stance) == "ambiguous")
+        ambiguous_count = sum(1 for assertion in ordinary_assertions if _normalize_stance(assertion.stance) == "ambiguous")
         provenance_group_count = self.independent_group_count(claim, assertions)
+        status = _authority_aware_status(opinion, applicable_authorities)
+        reasons = _assessment_reasons(
+            len(support) + sum(1 for stance, _ in applicable_authorities if stance == "affirm"),
+            len(opposition) + sum(1 for stance, _ in applicable_authorities if stance == "deny"),
+            provenance_group_count,
+            ambiguous_count,
+            opinion,
+        )
+        reasons.extend(_authority_reasons(applicable_authorities))
         return ClaimAssessment(
             claim_id=claim.claim_id,
             opinion=opinion,
-            status=_assessment_status(opinion),
-            reasons=_assessment_reasons(len(support), len(opposition), provenance_group_count, ambiguous_count, opinion),
+            status=status,
+            reasons=reasons,
+            authority_assessments=[authority for _, authority in authority_assessments],
         )
+
+    def _authority_evidence(
+        self,
+        claim: EvidenceClaim,
+        authority_assessments: list[tuple[EvidenceAssertion, AuthorityAssessment]],
+    ) -> tuple[float, float, list[tuple[str, AuthorityAssessment]]]:
+        evidence_by_origin: dict[str, tuple[str, AuthorityAssessment]] = {}
+        for assertion, authority in authority_assessments:
+            stance = _normalize_stance(assertion.stance)
+            if (
+                authority.status not in {"authority_valid", "authority_contested"}
+                or assertion.predicate != claim.behavior_type
+                or stance not in {"affirm", "deny"}
+            ):
+                continue
+            origin = assertion.origin_evidence or assertion.source_group or assertion.assertion_id
+            existing = evidence_by_origin.get(origin)
+            if existing is None or authority.strength > existing[1].strength:
+                evidence_by_origin[origin] = (stance, authority)
+
+        applicable = list(evidence_by_origin.values())
+        support = 0.0
+        opposition = 0.0
+        for stance, authority in applicable:
+            positive_amount = authority.mean * authority.strength
+            negative_amount = (1.0 - authority.mean) * authority.strength
+            if stance == "affirm":
+                support += positive_amount
+                opposition += negative_amount
+            else:
+                support += negative_amount
+                opposition += positive_amount
+        return support, opposition, applicable
 
     def independent_group_count(self, claim: EvidenceClaim, assertions: list[EvidenceAssertion]) -> int:
         del claim
@@ -215,6 +359,32 @@ def _assessment_status(opinion: ClaimOpinion) -> str:
     if opinion.support >= 0.50:
         return "supported"
     return "insufficient"
+
+
+def _authority_aware_status(
+    opinion: ClaimOpinion,
+    authorities: list[tuple[str, AuthorityAssessment]],
+) -> str:
+    if any(authority.status == "authority_contested" for _, authority in authorities):
+        return "authority_contested"
+    if authorities:
+        return "authority_anchored"
+    return _assessment_status(opinion)
+
+
+def _authority_reasons(authorities: list[tuple[str, AuthorityAssessment]]) -> list[str]:
+    reasons = []
+    for stance, authority in authorities:
+        description = f"{authority.issuer} {authority.document_type}".strip()
+        if authority.status == "authority_contested":
+            reasons.append(f"authoritative defeater from {description} contests this claim")
+        else:
+            reasons.append(f"authority anchor from {description} contributes {stance} evidence")
+    return reasons
+
+
+def _text_value(value: object) -> str:
+    return value if isinstance(value, str) else ""
 
 
 def _assessment_reasons(

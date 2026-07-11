@@ -148,11 +148,30 @@ class ClaimOpinion:
 
 
 @dataclass(frozen=True)
+class AuthorityAssessment:
+    issuer: str = ""
+    document_type: str = ""
+    competence_verified: bool = False
+    authenticity_verified: bool = False
+    procedure_verified: bool = False
+    subject_identity_verified: bool = False
+    method_verified: bool = False
+    standard_verified: bool = False
+    scope_verified: bool = False
+    defeater: bool = False
+    status: str = "unverified"
+    mean: float = 0.0
+    strength: float = 0.0
+    reasons: list[str] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
 class ClaimAssessment:
     claim_id: str
     opinion: ClaimOpinion | None = None
     status: str = "unassessed"
     reasons: list[str] = field(default_factory=list)
+    authority_assessments: list[AuthorityAssessment] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
