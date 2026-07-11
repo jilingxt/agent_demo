@@ -1,0 +1,55 @@
+{
+  "model_id": "intentional_injury",
+  "version": "1",
+  "calibration_status": "expert_prior",
+  "nodes": [
+    {
+      "id": "violent_action",
+      "type": "prior",
+      "prior": 0.2
+    },
+    {
+      "id": "injury_grade",
+      "type": "noisy_or",
+      "parents": ["violent_action"],
+      "leak": 0.1,
+      "weights": {
+        "violent_action": 0.6
+      }
+    },
+    {
+      "id": "mechanism_consistency",
+      "type": "prior",
+      "prior": 0.35
+    },
+    {
+      "id": "temporal_consistency",
+      "type": "prior",
+      "prior": 0.35
+    },
+    {
+      "id": "alternative_cause",
+      "type": "prior",
+      "prior": 0.2
+    },
+    {
+      "id": "causation",
+      "type": "logistic",
+      "parents": [
+        "violent_action",
+        "injury_grade",
+        "mechanism_consistency",
+        "temporal_consistency",
+        "alternative_cause"
+      ],
+      "intercept": -3.0,
+      "weights": {
+        "violent_action": 2.6,
+        "injury_grade": 1.7,
+        "mechanism_consistency": 1.2,
+        "temporal_consistency": 1.1,
+        "alternative_cause": -2.5
+      }
+    }
+  ]
+}
