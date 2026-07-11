@@ -101,6 +101,82 @@ class BayesianInferenceEngineTests(unittest.TestCase):
         self.assertEqual(first["version"], "1")
         self.assertEqual(first["calibration_status"], "expert_prior")
 
+    def test_semantically_equivalent_specs_share_hash_and_node_values(self):
+        ordered_spec = {
+            "model_id": "semantic",
+            "version": "1",
+            "calibration_status": "expert_prior",
+            "nodes": [
+                {"id": "action", "type": "prior", "prior": 0.1},
+                {"id": "injury", "type": "prior", "prior": 0.2},
+                {"id": "timing", "type": "prior", "prior": 0.3},
+                {
+                    "id": "causation",
+                    "type": "logistic",
+                    "parents": ["action", "injury", "timing"],
+                    "intercept": -0.4,
+                    "weights": {"action": 0.3, "injury": 0.6, "timing": 0.9},
+                },
+            ],
+        }
+        reordered_spec = {
+            "calibration_status": "expert_prior",
+            "version": "1",
+            "model_id": "semantic",
+            "nodes": [
+                {
+                    "id": "causation",
+                    "type": "logistic",
+                    "parents": ["timing", "injury", "action"],
+                    "intercept": -0.4,
+                    "weights": {"timing": 0.9, "injury": 0.6, "action": 0.3},
+                },
+                {"id": "timing", "type": "prior", "prior": 0.3},
+                {"id": "injury", "type": "prior", "prior": 0.2},
+                {"id": "action", "type": "prior", "prior": 0.1},
+            ],
+        }
+
+        ordered = BayesianInferenceEngine(model_spec=ordered_spec).infer({})
+        reordered = BayesianInferenceEngine(model_spec=reordered_spec).infer({})
+
+        self.assertEqual(ordered["parameter_hash"], reordered["parameter_hash"])
+        self.assertEqual(ordered["node_values"], reordered["node_values"])
+
+    def test_irrelevant_node_fields_are_rejected(self):
+        prior_with_weights = {
+            "model_id": "invalid",
+            "version": "1",
+            "calibration_status": "expert_prior",
+            "nodes": [{"id": "action", "type": "prior", "prior": 0.2, "weights": {}}],
+        }
+        logistic_with_leak = {
+            "model_id": "invalid",
+            "version": "1",
+            "calibration_status": "expert_prior",
+            "nodes": [{"id": "action", "type": "logistic", "parents": [], "intercept": 0, "weights": {}, "leak": 0}],
+        }
+
+        with self.assertRaises(ModelValidationError):
+            BayesianInferenceEngine(model_spec=prior_with_weights)
+        with self.assertRaises(ModelValidationError):
+            BayesianInferenceEngine(model_spec=logistic_with_leak)
+
+    def test_child_before_parent_declaration_evaluates_topologically(self):
+        engine = BayesianInferenceEngine(
+            model_spec={
+                "model_id": "declaration-order",
+                "version": "1",
+                "calibration_status": "expert_prior",
+                "nodes": [
+                    {"id": "child", "type": "logistic", "parents": ["parent"], "intercept": 0, "weights": {"parent": 2}},
+                    {"id": "parent", "type": "prior", "prior": 0.75},
+                ],
+            }
+        )
+
+        self.assertAlmostEqual(engine.infer({})["node_values"]["child"], 1 / (1 + 2.718281828459045**-1.5))
+
 
 if __name__ == "__main__":
     unittest.main()

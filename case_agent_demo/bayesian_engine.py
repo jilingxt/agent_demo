@@ -6,6 +6,7 @@ import hashlib
 import json
 import math
 from collections import deque
+from decimal import Decimal
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -50,7 +51,7 @@ class BayesianInferenceEngine:
             raise ModelValidationError("model specification must be JSON serializable") from exc
 
         node_by_id, ordered_node_ids = _validate_model(model)
-        canonical = json.dumps(model, ensure_ascii=True, sort_keys=True, separators=(",", ":"))
+        canonical = json.dumps(_normalized_parameter_model(model), ensure_ascii=True, sort_keys=True, separators=(",", ":"))
         self._model = model
         self._node_by_id = node_by_id
         self._ordered_node_ids = ordered_node_ids
@@ -123,6 +124,19 @@ def _validate_node(node: dict[str, Any]) -> None:
     if node_type not in {"prior", "logistic", "noisy_or"}:
         raise ModelValidationError(f"unsupported node type: {node_type}")
 
+    required_keys = {
+        "prior": {"id", "type", "prior"},
+        "logistic": {"id", "type", "parents", "intercept", "weights"},
+        "noisy_or": {"id", "type", "parents", "weights"},
+    }[node_type]
+    allowed_keys = required_keys | ({"leak"} if node_type == "noisy_or" else set())
+    missing_keys = required_keys - set(node)
+    unexpected_keys = set(node) - allowed_keys
+    if missing_keys:
+        raise ModelValidationError(f"node {node['id']} is missing required keys: {sorted(missing_keys)}")
+    if unexpected_keys:
+        raise ModelValidationError(f"node {node['id']} has unsupported keys: {sorted(unexpected_keys)}")
+
     parents = node.get("parents", [])
     if not isinstance(parents, list) or any(not isinstance(parent, str) or not parent for parent in parents):
         raise ModelValidationError(f"node {node['id']} parents must be a list of node ids")
@@ -147,6 +161,39 @@ def _validate_node(node: dict[str, Any]) -> None:
         _validate_probability(node.get("leak", 0.0), f"leak for {node['id']}")
         for parent_id, weight in weights.items():
             _validate_probability(weight, f"weight for {node['id']}.{parent_id}")
+
+
+def _normalized_parameter_model(model: Mapping[str, Any]) -> dict[str, Any]:
+    normalized_nodes = []
+    for node in model["nodes"]:
+        normalized_node = {"id": node["id"], "type": node["type"]}
+        if node["type"] == "prior":
+            normalized_node["prior"] = _normalized_number(node["prior"])
+        else:
+            parents = sorted(node["parents"])
+            normalized_node["parents"] = parents
+            normalized_node["weights"] = {
+                parent_id: _normalized_number(node["weights"][parent_id]) for parent_id in parents
+            }
+            if node["type"] == "logistic":
+                normalized_node["intercept"] = _normalized_number(node["intercept"])
+            else:
+                normalized_node["leak"] = _normalized_number(node.get("leak", 0.0))
+        normalized_nodes.append(normalized_node)
+
+    return {
+        "model_id": model["model_id"],
+        "version": model["version"],
+        "calibration_status": model["calibration_status"],
+        "nodes": sorted(normalized_nodes, key=lambda node: node["id"]),
+    }
+
+
+def _normalized_number(value: int | float) -> str:
+    number = Decimal(str(value)).normalize()
+    if number == 0:
+        return "0"
+    return format(number, "f")
 
 
 def _topological_order(
