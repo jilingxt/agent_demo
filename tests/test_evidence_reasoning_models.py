@@ -43,6 +43,44 @@ class AssertionNormalizerTests(unittest.TestCase):
         self.assertEqual(len({claim.claim_id for claim in claims}), 1)
         self.assertEqual(claims[0].supporting_node_ids, ["N-target", "N-object"])
 
+    def test_equivalent_target_claim_fields_are_order_independent(self):
+        target_node = EvidenceNode(
+            node_id="N-target",
+            node_type="fact",
+            source_material_id="M-target",
+            source_type="statement",
+            summary="target account",
+            metadata={
+                "actor": "person-a",
+                "predicate": "violence",
+                "target_person": "person-b",
+                "event_id": "event-1",
+            },
+        )
+        object_node = EvidenceNode(
+            node_id="N-object",
+            node_type="fact",
+            source_material_id="M-object",
+            source_type="statement",
+            summary="object account",
+            metadata={
+                "actor": "person-a",
+                "predicate": "violence",
+                "object": "person-b",
+                "event_id": "event-1",
+            },
+        )
+        normalizer = AssertionNormalizer()
+
+        forward = normalizer.build_claims(normalizer.normalize_graph(CaseGraph(nodes=[target_node, object_node])))[0]
+        reversed_claim = normalizer.build_claims(normalizer.normalize_graph(CaseGraph(nodes=[object_node, target_node])))[0]
+
+        self.assertEqual(reversed_claim.claim_id, forward.claim_id)
+        self.assertEqual(reversed_claim.target_person, forward.target_person)
+        self.assertEqual(reversed_claim.object, forward.object)
+        self.assertEqual(reversed_claim.target_person, "person-b")
+        self.assertEqual(reversed_claim.object, "person-b")
+
     def test_metadata_sparse_node_uses_existing_claim_type_inference(self):
         node = EvidenceNode(
             node_id="N-fallback",

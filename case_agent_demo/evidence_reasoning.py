@@ -51,6 +51,11 @@ class AssertionNormalizer:
                 target_person=assertion.target_person,
                 event_id=assertion.event_id,
             )
+            claim = replace(
+                claim,
+                target_person=claim.target_person or assertion.target_person,
+                object=claim.object or assertion.object,
+            )
             claim = replace(claim, assertion_ids=[*claim.assertion_ids, assertion.assertion_id])
             if assertion.stance == "affirm":
                 claim = replace(claim, supporting_node_ids=[*claim.supporting_node_ids, assertion.node_id])
