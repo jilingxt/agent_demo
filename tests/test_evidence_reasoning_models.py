@@ -5,6 +5,59 @@ from case_agent_demo.models import CaseGraph, EvidenceNode
 
 
 class AssertionNormalizerTests(unittest.TestCase):
+    def test_target_person_and_legacy_object_share_one_claim_and_id(self):
+        graph = CaseGraph(
+            nodes=[
+                EvidenceNode(
+                    node_id="N-target",
+                    node_type="fact",
+                    source_material_id="M-target",
+                    source_type="statement",
+                    summary="first account",
+                    metadata={
+                        "actor": "person-a",
+                        "predicate": "violence",
+                        "target_person": "person-b",
+                        "event_id": "event-1",
+                    },
+                ),
+                EvidenceNode(
+                    node_id="N-object",
+                    node_type="fact",
+                    source_material_id="M-object",
+                    source_type="statement",
+                    summary="second account",
+                    metadata={
+                        "actor": "person-a",
+                        "predicate": "violence",
+                        "object": "person-b",
+                        "event_id": "event-1",
+                    },
+                ),
+            ]
+        )
+
+        claims = AssertionNormalizer().build_claims(AssertionNormalizer().normalize_graph(graph))
+
+        self.assertEqual(len(claims), 1)
+        self.assertEqual(len({claim.claim_id for claim in claims}), 1)
+        self.assertEqual(claims[0].supporting_node_ids, ["N-target", "N-object"])
+
+    def test_metadata_sparse_node_uses_existing_claim_type_inference(self):
+        node = EvidenceNode(
+            node_id="N-fallback",
+            node_type="fact",
+            source_material_id="M-fallback",
+            source_type="statement",
+            summary="person-a fought person-b",
+            behavior="打架",
+            object="person-b",
+        )
+
+        assertion = AssertionNormalizer().normalize_graph(CaseGraph(nodes=[node]))[0]
+
+        self.assertEqual(assertion.predicate, "violence")
+
     def test_metadata_rich_nodes_normalize_and_group_by_actor_predicate_target_and_event(self):
         graph = CaseGraph(
             nodes=[

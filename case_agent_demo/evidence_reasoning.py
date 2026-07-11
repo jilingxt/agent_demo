@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from dataclasses import replace
 
-from case_agent_demo.models import EvidenceAssertion, EvidenceClaim, EvidenceGraph
+from case_agent_demo.models import EvidenceAssertion, EvidenceClaim, EvidenceGraph, infer_claim_type
 
 
 class AssertionNormalizer:
@@ -13,7 +13,7 @@ class AssertionNormalizer:
     def normalize_node(self, node) -> EvidenceAssertion:
         metadata = node.metadata
         actor = metadata.get("actor", node.person)
-        predicate = metadata.get("predicate", node.claim_type or "general")
+        predicate = metadata.get("predicate") or node.claim_type or infer_claim_type(node.behavior or node.summary, node.object)
         stance = _normalize_stance(metadata.get("stance", node.polarity))
         target_person = metadata.get("target_person", metadata.get("target", ""))
         origin_evidence = metadata.get("origin_evidence", node.raw_ref or node.source_material_id)
@@ -34,13 +34,13 @@ class AssertionNormalizer:
         )
 
     def build_claims(self, assertions: list[EvidenceAssertion]) -> list[EvidenceClaim]:
-        buckets: dict[tuple[str, str, str, str, str], EvidenceClaim] = {}
+        buckets: dict[tuple[str, str, str, str], EvidenceClaim] = {}
         for assertion in assertions:
+            target = assertion.target_person or assertion.object
             key = (
                 assertion.actor,
                 assertion.predicate,
-                assertion.target_person,
-                assertion.object,
+                target,
                 assertion.event_id,
             )
             claim = buckets.get(key) or EvidenceClaim(
@@ -70,8 +70,8 @@ def _normalize_stance(stance: str) -> str:
     return "ambiguous"
 
 
-def _claim_id(key: tuple[str, str, str, str, str]) -> str:
-    return "CL-" + "-".join(_safe(part) for part in (key[1], key[0], key[2] or key[3], key[4]))
+def _claim_id(key: tuple[str, str, str, str]) -> str:
+    return "CL-" + "-".join(_safe(part) for part in (key[1], key[0], key[2], key[3]))
 
 
 def _safe(value: str) -> str:
