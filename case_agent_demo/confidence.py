@@ -10,7 +10,9 @@ from case_agent_demo.models import ConfidenceProfile, EvidenceClaim, EvidenceGra
 LEGACY_LABELS = {
     "unassessed": "低可信或被冲突削弱",
     "supported": "有一定印证",
+    "authority_anchored": "有一定印证",
     "contested": "争议事实，尚不足以否定",
+    "authority_contested": "争议事实，尚不足以否定",
     "opposing_dominant": "低可信或被冲突削弱",
     "insufficient": "明显存疑，需补强",
 }

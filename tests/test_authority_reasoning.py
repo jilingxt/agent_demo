@@ -1,7 +1,9 @@
 import unittest
+from pathlib import Path
 
+from case_agent_demo.confidence import ConfidenceEngine, LEGACY_LABELS
 from case_agent_demo.evidence_reasoning import AuthorityValidator, SubjectiveEvidenceEngine
-from case_agent_demo.models import EvidenceAssertion, EvidenceClaim
+from case_agent_demo.models import CaseGraph, EvidenceAssertion, EvidenceClaim, EvidenceNode
 
 
 VERIFIED_FORENSIC_METADATA = {
@@ -105,6 +107,103 @@ class AuthorityReasoningTests(unittest.TestCase):
         self.assertEqual(authority.status, "unverified")
         self.assertNotEqual(assessment.status, "authority_anchored")
         self.assertLess(assessment.opinion.support, 0.50)
+
+    def test_ordinary_assertion_from_a_different_claim_does_not_add_support(self):
+        injury_assertion = EvidenceAssertion(
+            assertion_id="A-ordinary-injury",
+            node_id="A-ordinary-injury",
+            actor="actor-a",
+            predicate="injury_grade",
+            target_person="victim-a",
+            event_id="event-a",
+            stance="affirm",
+            source_group="ordinary-injury",
+            origin_evidence="ordinary-injury",
+        )
+        violence_claim = EvidenceClaim(
+            "CL-violence",
+            "actor-a",
+            "violence",
+            target_person="victim-a",
+            event_id="event-a",
+        )
+
+        assessment = self.engine.evaluate(violence_claim, [injury_assertion])
+
+        self.assertEqual(assessment.opinion.support, 0.0)
+        self.assertEqual(assessment.status, "unassessed")
+
+    def test_scoped_ordinary_assertion_requires_the_claim_target(self):
+        assertion = EvidenceAssertion(
+            assertion_id="A-missing-target",
+            node_id="A-missing-target",
+            actor="actor-a",
+            predicate="violence",
+            event_id="event-a",
+            stance="affirm",
+            source_group="missing-target",
+            origin_evidence="missing-target",
+        )
+        claim = EvidenceClaim(
+            "CL-targeted-violence",
+            "actor-a",
+            "violence",
+            target_person="victim-a",
+            event_id="event-a",
+        )
+
+        assessment = self.engine.evaluate(claim, [assertion])
+
+        self.assertEqual(assessment.opinion.support, 0.0)
+
+    def test_missing_external_rules_path_uses_conservative_default_rules(self):
+        missing_path = Path(__file__).with_name("missing_authority_rules.json")
+
+        assessment = AuthorityValidator(missing_path).validate(forensic_assertion())
+
+        self.assertEqual(assessment.status, "authority_valid")
+        self.assertEqual(assessment.mean, 0.99)
+        self.assertEqual(assessment.strength, 50.0)
+
+    def test_confidence_engine_maps_authority_statuses_to_legacy_labels(self):
+        anchored = ConfidenceEngine().score_claims(CaseGraph(nodes=[self._forensic_node("N-anchor")]))[0]
+        contested = ConfidenceEngine().score_claims(
+            CaseGraph(
+                nodes=[
+                    self._forensic_node("N-anchor"),
+                    self._forensic_node("N-reappraisal", stance="deny", defeater=True),
+                ]
+            )
+        )[0]
+
+        self.assertEqual(anchored.confidence_profile.label, LEGACY_LABELS["supported"])
+        self.assertGreater(anchored.confidence_profile.final_score, 0.90)
+        self.assertEqual(contested.confidence_profile.label, LEGACY_LABELS["contested"])
+        self.assertTrue(any("authoritative defeater" in reason for reason in contested.confidence_profile.reasons))
+
+    @staticmethod
+    def _forensic_node(node_id, stance="affirm", defeater=False):
+        return EvidenceNode(
+            node_id=node_id,
+            node_type="fact",
+            source_material_id=node_id,
+            source_type="forensic_report",
+            summary="forensic injury grade",
+            metadata={
+                "actor": "actor-a",
+                "predicate": "injury_grade",
+                "target_person": "victim-a",
+                "event_id": "event-a",
+                "stance": stance,
+                "source_group": node_id,
+                "origin_evidence": node_id,
+                "authority": {
+                    **VERIFIED_FORENSIC_METADATA["authority"],
+                    "document_type": "forensic_injury_reappraisal" if defeater else "forensic_injury_grade_report",
+                    "defeater": defeater,
+                },
+            },
+        )
 
 
 if __name__ == "__main__":

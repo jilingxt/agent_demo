@@ -48,12 +48,26 @@ _VERIFICATION_FIELDS = (
     "standard_verified",
     "scope_verified",
 )
+_FALLBACK_AUTHORITY_RULES = (
+    {
+        "id": "verified_forensic_injury_grade_v1",
+        "issuers": ["qualified_forensic_institution"],
+        "document_types": ["forensic_injury_grade_report", "forensic_injury_reappraisal"],
+        "predicates": ["injury_exists", "injury_grade"],
+        "mean": 0.99,
+        "strength": 50.0,
+        "requires_human_verification": True,
+    },
+)
 
 
 class AuthorityValidator:
     def __init__(self, rules_path: str | Path | None = None):
         path = Path(rules_path) if rules_path is not None else _AUTHORITY_RULES_PATH
-        self.rules = json.loads(path.read_text(encoding="utf-8")).get("rules", [])
+        try:
+            self.rules = json.loads(path.read_text(encoding="utf-8")).get("rules", [])
+        except OSError:
+            self.rules = list(_FALLBACK_AUTHORITY_RULES)
 
     def validate(self, assertion: EvidenceAssertion) -> AuthorityAssessment:
         metadata = assertion.metadata.get("authority")
@@ -150,7 +164,9 @@ class SubjectiveEvidenceEngine:
             if authority.status in {"authority_valid", "authority_contested"}
         }
         ordinary_assertions = [
-            assertion for assertion in assertions if assertion.assertion_id not in authority_assertion_ids
+            assertion
+            for assertion in assertions
+            if assertion.assertion_id not in authority_assertion_ids and _assertion_matches_claim(assertion, claim)
         ]
         support = self._strongest_strengths(claim, ordinary_assertions, "affirm")
         opposition = self._strongest_strengths(claim, ordinary_assertions, "deny")
@@ -385,6 +401,32 @@ def _authority_reasons(authorities: list[tuple[str, AuthorityAssessment]]) -> li
 
 def _text_value(value: object) -> str:
     return value if isinstance(value, str) else ""
+
+
+def _assertion_matches_claim(assertion: EvidenceAssertion, claim: EvidenceClaim) -> bool:
+    # Unscoped legacy assertions are passed directly by older callers as claim-local evidence.
+    if _is_unscoped_legacy_assertion(assertion):
+        return True
+    return (
+        assertion.actor == claim.subject
+        and assertion.predicate == claim.behavior_type
+        and _normalized_target(assertion.target_person, assertion.object)
+        == _normalized_target(claim.target_person, claim.object)
+        and (not claim.event_id or assertion.event_id == claim.event_id)
+    )
+
+
+def _is_unscoped_legacy_assertion(assertion: EvidenceAssertion) -> bool:
+    return (
+        not assertion.actor
+        and assertion.predicate in {"", "general"}
+        and not _normalized_target(assertion.target_person, assertion.object)
+        and not assertion.event_id
+    )
+
+
+def _normalized_target(target_person: str, obj: str) -> str:
+    return (target_person or obj).strip().casefold()
 
 
 def _assessment_reasons(
