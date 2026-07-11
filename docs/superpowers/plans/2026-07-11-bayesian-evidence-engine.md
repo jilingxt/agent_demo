@@ -37,6 +37,7 @@
 ### Task 2: Quality And Subjective Evidence Fusion
 
 **Files:**
+- Modify: `case_agent_demo/models.py`
 - Modify: `case_agent_demo/evidence_reasoning.py`
 - Modify: `case_agent_demo/confidence.py`
 - Test: `tests/test_subjective_evidence.py`
@@ -60,7 +61,7 @@
 
 **Interfaces:**
 - Consumes: authority metadata on assertions and ordinary claim opinions.
-- Produces: `AuthorityValidator.validate(assertion)` and authority-aware `ClaimAssessment`.
+- Produces: `AuthorityAssessment`, `AuthorityValidator.validate(assertion)`, and authority-aware `ClaimAssessment`.
 
 - [ ] Write tests showing a verified forensic injury-grade report establishes only the injury-grade claim, ordinary denial does not defeat it, and a conflicting reappraisal contests it.
 - [ ] Run the focused test and verify failure before implementation.
