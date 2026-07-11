@@ -3,7 +3,8 @@ import unittest
 
 from case_agent_demo.confidence import ConfidenceEngine
 from case_agent_demo.evidence_reasoning import EvidenceQualityEvaluator, SubjectiveEvidenceEngine
-from case_agent_demo.models import CaseGraph, EvidenceAssertion, EvidenceClaim, EvidenceNode
+from case_agent_demo.final_conflict_agent import FinalConflictAgent
+from case_agent_demo.models import CaseGraph, EvidenceAssertion, EvidenceClaim, EvidenceEdge, EvidenceNode, LegalRAGResult
 
 
 QUALITY_VALUES = {
@@ -119,6 +120,72 @@ class SubjectiveEvidenceTests(unittest.TestCase):
 
         self.assertEqual(score("suspect"), score("victim"))
         self.assertEqual(score("victim"), score("official"))
+
+    def test_contested_claim_keeps_legacy_label_and_triggers_claim_review(self):
+        graph = CaseGraph(
+            nodes=[
+                self._node("N-support", "affirm", "group-support", "origin-support"),
+                self._node("N-denial", "deny", "group-denial", "origin-denial"),
+            ]
+        )
+
+        claim = ConfidenceEngine().score_claims(graph)[0]
+        issues = FinalConflictAgent().review(
+            "case-type",
+            CaseGraph(nodes=graph.nodes, claims=[claim]),
+            "draft",
+            LegalRAGResult(matches=[object()], chunks=[object()], query="query", purpose="review"),
+        )
+
+        self.assertEqual(claim.confidence_profile.label, "争议事实，尚不足以否定")
+        self.assertIn("contested_but_not_refuted", {issue.issue_type for issue in issues})
+
+    def test_confidence_facade_claims_include_related_active_graph_edges(self):
+        graph = CaseGraph(
+            nodes=[self._node("N-support", "affirm", "group-support", "origin-support")],
+            edges=[
+                EvidenceEdge("E-active", "N-support", "N-incident", "supports", "incident link"),
+                EvidenceEdge("E-inactive", "N-support", "N-old", "supports", "old link", status="inactive"),
+            ],
+        )
+
+        claim = ConfidenceEngine().score_claims(graph)[0]
+
+        self.assertEqual(claim.related_edge_ids, ["E-active"])
+
+    def test_one_provenance_group_on_both_stances_counts_once_for_independence(self):
+        evidence = [
+            assertion("A-support", source_group="shared-group", origin="shared-origin"),
+            assertion("A-denial", stance="deny", source_group="shared-group", origin="shared-origin"),
+        ]
+        graph = CaseGraph(
+            nodes=[
+                self._node("N-support", "affirm", "shared-group", "shared-origin"),
+                self._node("N-denial", "deny", "shared-group", "shared-origin"),
+            ]
+        )
+
+        self.assertEqual(self.engine.independent_group_count(self.claim, evidence), 1)
+        self.assertAlmostEqual(ConfidenceEngine().score_claims(graph)[0].confidence_profile.independence_score, 1 / 3)
+
+    @staticmethod
+    def _node(node_id, stance, source_group, origin):
+        return EvidenceNode(
+            node_id=node_id,
+            node_type="fact",
+            source_material_id=f"M-{node_id}",
+            source_type="statement",
+            summary="account",
+            metadata={
+                "actor": "person-a",
+                "predicate": "violence",
+                "event_id": "event-1",
+                "stance": stance,
+                "source_group": source_group,
+                "origin_evidence": origin,
+                **QUALITY_VALUES,
+            },
+        )
 
 
 if __name__ == "__main__":

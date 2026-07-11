@@ -69,16 +69,18 @@ class SubjectiveEvidenceEngine:
             else 0.0,
         )
         ambiguous_count = sum(1 for assertion in assertions if _normalize_stance(assertion.stance) == "ambiguous")
+        provenance_group_count = self.independent_group_count(claim, assertions)
         return ClaimAssessment(
             claim_id=claim.claim_id,
             opinion=opinion,
             status=_assessment_status(opinion),
-            reasons=_assessment_reasons(len(support), len(opposition), ambiguous_count, opinion),
+            reasons=_assessment_reasons(len(support), len(opposition), provenance_group_count, ambiguous_count, opinion),
         )
 
     def independent_group_count(self, claim: EvidenceClaim, assertions: list[EvidenceAssertion]) -> int:
-        return len(self._strongest_strengths(claim, assertions, "affirm")) + len(
-            self._strongest_strengths(claim, assertions, "deny")
+        del claim
+        return _provenance_group_count(
+            [assertion for assertion in assertions if _normalize_stance(assertion.stance) in {"affirm", "deny"}]
         )
 
     def _strongest_strengths(
@@ -168,8 +170,24 @@ class ClaimBuilderV2:
     def __init__(self, normalizer: AssertionNormalizer | None = None):
         self.normalizer = normalizer or AssertionNormalizer()
 
-    def build_claims(self, assertions: list[EvidenceAssertion]) -> list[EvidenceClaim]:
-        return self.normalizer.build_claims(assertions)
+    def build_claims(self, assertions: list[EvidenceAssertion], graph: EvidenceGraph | None = None) -> list[EvidenceClaim]:
+        claims = self.normalizer.build_claims(assertions)
+        if graph is None:
+            return claims
+        edge_ids_by_node = _active_edge_ids_by_node(graph)
+        return [
+            replace(
+                claim,
+                related_edge_ids=sorted(
+                    {
+                        edge_id
+                        for node_id in claim.supporting_node_ids + claim.opposing_node_ids + claim.ambiguous_node_ids
+                        for edge_id in edge_ids_by_node.get(node_id, [])
+                    }
+                ),
+            )
+            for claim in claims
+        ]
 
 
 def _normalize_stance(stance: str) -> str:
@@ -202,6 +220,7 @@ def _assessment_status(opinion: ClaimOpinion) -> str:
 def _assessment_reasons(
     support_groups: int,
     opposition_groups: int,
+    provenance_group_count: int,
     ambiguous_count: int,
     opinion: ClaimOpinion,
 ) -> list[str]:
@@ -210,6 +229,8 @@ def _assessment_reasons(
         reasons.append(f"{support_groups} independent supporting source group(s)")
     if opposition_groups:
         reasons.append(f"{opposition_groups} independent denying source group(s)")
+    if provenance_group_count:
+        reasons.append(f"{provenance_group_count} independent provenance group(s) overall")
     if ambiguous_count:
         reasons.append(f"{ambiguous_count} ambiguous assertion(s) did not affect support or opposition")
     if opinion.conflict >= 0.50:
@@ -225,3 +246,41 @@ def _claim_id(key: tuple[str, str, str, str]) -> str:
 
 def _safe(value: str) -> str:
     return re.sub(r"\W+", "", value or "unknown")[:24] or "unknown"
+
+
+def _active_edge_ids_by_node(graph: EvidenceGraph) -> dict[str, list[str]]:
+    result: dict[str, list[str]] = {}
+    for edge in graph.edges:
+        if edge.status != "active":
+            continue
+        for node_id in (edge.source_node_id, edge.target_node_id):
+            result.setdefault(node_id, []).append(edge.edge_id)
+    return result
+
+
+def _provenance_group_count(assertions: list[EvidenceAssertion]) -> int:
+    parents: dict[str, str] = {}
+
+    def find(key: str) -> str:
+        parents.setdefault(key, key)
+        if parents[key] != key:
+            parents[key] = find(parents[key])
+        return parents[key]
+
+    def union(left: str, right: str) -> None:
+        left_root, right_root = find(left), find(right)
+        if left_root != right_root:
+            parents[right_root] = left_root
+
+    for assertion in assertions:
+        keys = []
+        if assertion.origin_evidence:
+            keys.append(f"origin:{assertion.origin_evidence}")
+        if assertion.source_group:
+            keys.append(f"source:{assertion.source_group}")
+        if not keys:
+            keys.append(f"assertion:{assertion.assertion_id}")
+        for key in keys[1:]:
+            union(keys[0], key)
+        find(keys[0])
+    return len({find(key) for key in parents})

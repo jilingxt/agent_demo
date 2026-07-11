@@ -7,6 +7,15 @@ from case_agent_demo.evidence_reasoning import AssertionNormalizer, ClaimBuilder
 from case_agent_demo.models import ConfidenceProfile, EvidenceClaim, EvidenceGraph, EvidenceNode
 
 
+LEGACY_LABELS = {
+    "unassessed": "低可信或被冲突削弱",
+    "supported": "有一定印证",
+    "contested": "争议事实，尚不足以否定",
+    "opposing_dominant": "低可信或被冲突削弱",
+    "insufficient": "明显存疑，需补强",
+}
+
+
 class ClaimBuilder:
     def build_claims(self, graph: EvidenceGraph) -> list[EvidenceClaim]:
         buckets: dict[tuple[str, str, str, str], EvidenceClaim] = {}
@@ -70,13 +79,13 @@ class ConfidenceEngine:
             independence_score=min(1.0, self.subjective_engine.independent_group_count(claim, assertions) / 3),
             uncertainty=opinion.uncertainty,
             final_score=round(opinion.support + 0.5 * opinion.uncertainty, 4),
-            label=assessment.status,
+            label=LEGACY_LABELS.get(assessment.status, "低可信或被冲突削弱"),
             reasons=assessment.reasons,
         )
 
     def score_claims(self, graph: EvidenceGraph) -> list[EvidenceClaim]:
         assertions = self.normalizer.normalize_graph(graph)
-        claims = graph.claims or self.claim_builder.build_claims(assertions)
+        claims = graph.claims or self.claim_builder.build_claims(assertions, graph)
         return [replace(claim, confidence_profile=self.score_claim(claim, graph)) for claim in claims]
 
     def _assertions_for_claim(self, claim: EvidenceClaim, graph: EvidenceGraph):
