@@ -38,6 +38,7 @@ class BayesianModelRun:
     calibration_status: str
     parameter_hash: str
     group_key: str
+    anchor_claim_id: str
     input_claim_ids: list[str]
     soft_evidence: dict[str, float]
     soft_evidence_sources: dict[str, list[str]]
@@ -138,21 +139,25 @@ class BayesianEvidenceTool:
             if model.input_map.get(claim.behavior_type) in model.anchor_inputs
             and _assessment_support(assessments.get(claim.claim_id)) is not None
         ]
-        grouped: dict[str, list[EvidenceClaim]] = {}
+        grouped: dict[str, tuple[EvidenceClaim, list[EvidenceClaim]]] = {}
         for anchor in anchor_claims:
             key = _claim_group_key(anchor)
             if key in grouped:
                 continue
-            grouped[key] = []
+            grouped[key] = (anchor, [])
             for claim in claims:
                 if _claims_compatible(anchor, claim, model):
-                    grouped[key].append(claim)
-        return [self._run_group(model, group_key, group, assessments) for group_key, group in grouped.items()]
+                    grouped[key][1].append(claim)
+        return [
+            self._run_group(model, group_key, anchor, group, assessments)
+            for group_key, (anchor, group) in grouped.items()
+        ]
 
     def _run_group(
         self,
         model: RegisteredBayesianModel,
         group_key: str,
+        anchor: EvidenceClaim,
         claims: list[EvidenceClaim],
         assessments: Mapping[str, ClaimAssessment],
     ) -> BayesianModelRun:
@@ -178,6 +183,7 @@ class BayesianEvidenceTool:
             calibration_status=result["calibration_status"],
             parameter_hash=result["parameter_hash"],
             group_key=group_key,
+            anchor_claim_id=anchor.claim_id,
             input_claim_ids=list(
                 dict.fromkeys(
                     claim_id

@@ -154,17 +154,10 @@ def _append_derived_assessments(
     derived_claims: list[EvidenceClaim] = []
     derived_assessments: list[ClaimAssessment] = []
     for run in tool_result.runs:
-        source_claims = [by_id[claim_id] for claim_id in run.input_claim_ids if claim_id in by_id]
-        actor = next((claim.subject for claim in source_claims if claim.subject), "")
-        target = next(
-            (
-                claim.target_person or claim.object
-                for claim in source_claims
-                if claim.target_person or claim.object
-            ),
-            "",
-        )
-        event_id = next((claim.event_id for claim in source_claims if claim.event_id), "")
+        anchor = by_id.get(run.anchor_claim_id)
+        actor = anchor.subject if anchor is not None else ""
+        target = (anchor.target_person or anchor.object) if anchor is not None else ""
+        event_id = anchor.event_id if anchor is not None else ""
         model_version = f"{run.model_id}:{run.version}"
         for node_id, value in run.derived_values.items():
             claim_id = (

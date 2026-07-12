@@ -3,19 +3,26 @@ from case_agent_demo.final_conflict_agent import FinalConflictAgent
 from case_agent_demo.models import EvidenceGraph, EvidenceNode, LegalRAGResult
 
 
-def _node(node_id: str, predicate: str, *, value: float = 0.9) -> EvidenceNode:
+def _node(
+    node_id: str,
+    predicate: str,
+    *,
+    value: float = 0.9,
+    actor: str = "行为人",
+    target: str = "相对人",
+) -> EvidenceNode:
     return EvidenceNode(
         node_id=node_id,
         node_type="fact",
         source_material_id=node_id,
         source_type="statement",
         summary=predicate,
-        person="行为人",
+        person=actor,
         behavior=predicate,
         confidence=value,
         metadata={
-            "actor": "行为人",
-            "target_person": "相对人",
+            "actor": actor,
+            "target_person": target,
             "predicate": predicate,
             "event_id": "EVENT-1",
             "stance": "affirm",
@@ -87,3 +94,16 @@ def test_generic_derived_fact_can_trigger_final_review_without_case_special_case
 
     assert any(issue.issue_type == "derived_fact_insufficient" for issue in issues)
     assert all("故意伤害" not in issue.reason for issue in issues)
+
+
+def test_derived_claim_uses_anchor_actor_even_when_result_claim_comes_first():
+    graph = EvidenceGraph(nodes=[
+        _node("N-RESULT", "injury_exists", actor="受害人", target="受害人"),
+        _node("N-CONDUCT", "violence", actor="行为人", target="受害人"),
+    ])
+
+    result = EvidenceReasoningEngine().evaluate("人身权益案件", graph)
+    causation = next(claim for claim in result.claims if claim.behavior_type == "causation")
+
+    assert causation.subject == "行为人"
+    assert causation.target_person == "受害人"
