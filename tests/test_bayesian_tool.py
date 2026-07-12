@@ -226,6 +226,11 @@ def test_registry_rejects_priority_and_missing_models(tmp_path):
         BayesianModelRegistry(registry_path)
 
     data = json.loads(registry_path.read_text(encoding="utf-8"))
+    data["models"][0]["priority"] = 0.5
+    registry_path.write_text(json.dumps(data), encoding="utf-8")
+    with pytest.raises(ModelValidationError, match="integer 0"):
+        BayesianModelRegistry(registry_path)
+
     data["models"][0]["priority"] = 0
     registry_path.write_text(json.dumps(data), encoding="utf-8")
     with pytest.raises(ModelValidationError, match="model file does not exist"):
