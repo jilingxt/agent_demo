@@ -5,7 +5,7 @@ from pathlib import Path
 from case_agent_demo.bayesian_engine import BayesianInferenceEngine, ModelValidationError
 
 
-MODEL_PATH = Path(__file__).parents[1] / "config" / "bayesian_models" / "intentional_injury_v1.json"
+MODEL_PATH = Path(__file__).parents[1] / "config" / "bayesian_models" / "conduct_result_v1.json"
 
 
 class BayesianInferenceEngineTests(unittest.TestCase):
@@ -16,8 +16,8 @@ class BayesianInferenceEngineTests(unittest.TestCase):
         baseline = self.engine.infer({})["node_values"]["causation"]
         supported = self.engine.infer(
             {
-                "violent_action": 0.9,
-                "injury_grade": 0.9,
+                "conduct": 0.9,
+                "result_exists": 0.9,
                 "mechanism_consistency": 0.9,
                 "temporal_consistency": 0.9,
             }
@@ -25,16 +25,13 @@ class BayesianInferenceEngineTests(unittest.TestCase):
 
         self.assertGreater(supported, baseline)
 
-    def test_intentional_injury_model_exposes_the_full_claim_chain(self):
+    def test_conduct_result_model_exposes_only_general_factual_nodes(self):
         values = self.engine.infer({})["node_values"]
 
         self.assertTrue(
             {
-                "actor_present",
-                "physical_contact",
-                "violent_action",
-                "injury_exists",
-                "injury_grade",
+                "conduct",
+                "result_exists",
                 "mechanism_consistency",
                 "temporal_consistency",
                 "alternative_cause",
@@ -44,8 +41,8 @@ class BayesianInferenceEngineTests(unittest.TestCase):
 
     def test_causation_falls_when_alternative_cause_evidence_increases(self):
         supported = {
-            "violent_action": 0.9,
-            "injury_grade": 0.9,
+            "conduct": 0.9,
+            "result_exists": 0.9,
             "mechanism_consistency": 0.9,
             "temporal_consistency": 0.9,
         }
@@ -54,11 +51,11 @@ class BayesianInferenceEngineTests(unittest.TestCase):
 
         self.assertLess(with_alternative, without_alternative)
 
-    def test_injury_evidence_does_not_upgrade_violent_action(self):
-        baseline = self.engine.infer({})["node_values"]["violent_action"]
-        injury_only = self.engine.infer({"injury_grade": 1.0})["node_values"]["violent_action"]
+    def test_result_evidence_does_not_upgrade_conduct(self):
+        baseline = self.engine.infer({})["node_values"]["conduct"]
+        result_only = self.engine.infer({"result_exists": 1.0})["node_values"]["conduct"]
 
-        self.assertEqual(injury_only, baseline)
+        self.assertEqual(result_only, baseline)
 
     def test_invalid_models_and_cycles_are_rejected(self):
         duplicate_node = {
@@ -114,9 +111,9 @@ class BayesianInferenceEngineTests(unittest.TestCase):
         second = BayesianInferenceEngine(model_spec=json.loads(MODEL_PATH.read_text(encoding="utf-8"))).infer({})
 
         self.assertEqual(first["parameter_hash"], second["parameter_hash"])
-        self.assertEqual(first["model_id"], "intentional_injury")
+        self.assertEqual(first["model_id"], "conduct_result")
         self.assertEqual(first["version"], "1")
-        self.assertEqual(first["calibration_status"], "expert_prior")
+        self.assertEqual(first["calibration_status"], "expert_prior_unvalidated")
 
     def test_semantically_equivalent_specs_share_hash_and_node_values(self):
         ordered_spec = {
