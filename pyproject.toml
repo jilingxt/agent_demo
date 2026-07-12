@@ -7,5 +7,10 @@ dependencies = [
   "langchain-core>=0.3.0"
 ]
 
+[project.optional-dependencies]
+docs = [
+  "openpyxl>=3.1,<4"
+]
+
 [tool.setuptools.packages.find]
 include = ["case_agent_demo*"]
