@@ -1,6 +1,6 @@
 # Case Agent Demo
 
-一个用于案件笔录、图片证据、报告材料和法律知识库协同分析的多 Agent demo。当前版本为 `v0.51.0`。
+一个用于案件笔录、图片证据、报告材料和法律知识库协同分析的多 Agent demo。当前版本为 `v0.56.0`。
 
 ## 核心能力
 
@@ -11,6 +11,10 @@
 - `PicAgent` / `ReportImageAgent` 对图片和报告材料先提炼证据事实，再入图；
 - 构建兼容旧接口的 EvidenceGraph，包含 facts、nodes、edges、claims；
 - 使用 ConfidenceEngine 为 EvidenceClaim 计算可解释综合置信度；
+- 使用 SubjectiveEvidenceEngine 区分支持、反对、不确定和冲突；
+- 使用范围受限的权威锚定处理经人工核验的专业意见；
+- 使用注册表驱动的 BayesianEvidenceTool 执行五类同级事实模型；
+- 按事件、行为人和目标隔离贝叶斯 run，并记录参数哈希和输入来源；
 - `ConflictAgent` 独立检测笔录、图片、报告之间的矛盾；
 - 使用 LegalKnowledgeBaseTool 支持 txt/md/jsonl 入库、切片、软删除、更新和关键词检索；
 - 使用 Domain Affinity 对法律知识和案件事实进行领域相关度排序；
@@ -23,7 +27,7 @@
 ```powershell
 cd F:\汇报\Va1ha11a_demo
 pip install -e .
-python -m unittest discover -s tests -v
+python -m pytest -p no:cacheprovider tests -q
 python -m case_agent_demo.cli --sample
 ```
 
@@ -64,3 +68,9 @@ config/prompts/
 ## 当前法律库匹配规则
 
 `LegalRetrievalTool` 仍保留旧接口，并优先调用 `LegalKnowledgeBaseTool`；如果本地法律知识库没有内容，则回退到 `legal_library/laws.jsonl`。同类案件法条可按案件类型和关键词命中；跨类型法条需要更强行为要素。
+
+## v0.56 贝叶斯模型
+
+模型注册表位于 `config/bayesian_models/registry.json`，包含 `conduct_result`、`property_taking`、`public_order`、`public_safety` 和 `status_duty`。所有模型优先级均为 `0`，只推断事实要素，不推断法律责任或处罚。
+
+当前参数状态为 `expert_prior_unvalidated`。统计采集模板位于 `docs/statistics/bayesian_parameter_collection_template.xlsx`，参数只允许离线校准和版本审批。
