@@ -322,3 +322,19 @@ def test_missing_event_id_does_not_join_separate_claims(tmp_path):
 
     assert len(result.runs) == 1
     assert result.runs[0].soft_evidence == {"conduct": 0.8}
+
+
+def test_same_event_different_targets_are_not_joined(tmp_path):
+    claims = [
+        EvidenceClaim("C-A", "甲", "violence", target_person="乙", event_id="E1"),
+        EvidenceClaim("C-WRONG", "甲", "injury_exists", target_person="丙", event_id="E1"),
+        EvidenceClaim("C-RIGHT", "乙", "injury_exists", target_person="乙", event_id="E1"),
+    ]
+
+    result = BayesianEvidenceTool(_conduct_registry(tmp_path)).evaluate(
+        [], claims, [_assessment(claim.claim_id, 0.8) for claim in claims]
+    )
+
+    assert len(result.runs) == 1
+    assert result.runs[0].input_claim_ids == ["C-A", "C-RIGHT"]
+    assert "C-WRONG" not in result.runs[0].input_claim_ids

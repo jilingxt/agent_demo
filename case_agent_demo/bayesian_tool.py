@@ -313,6 +313,15 @@ def _claims_compatible(
     candidate_input = model.input_map.get(candidate.behavior_type)
     if candidate_input in model.anchor_inputs and candidate.subject != anchor.subject:
         return False
+    anchor_target = anchor.target_person or anchor.object
+    candidate_target = candidate.target_person or candidate.object
+    if anchor_target and candidate_target and candidate_target != anchor_target:
+        return False
+    if anchor_target and not candidate_target and candidate.subject not in {
+        anchor.subject,
+        anchor_target,
+    }:
+        return False
     anchor_entities = {value for value in (anchor.subject, anchor.target_person, anchor.object) if value}
     candidate_entities = {
         value for value in (candidate.subject, candidate.target_person, candidate.object) if value
