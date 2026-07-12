@@ -87,6 +87,11 @@ def test_checked_in_workbook_matches_the_contract():
     workbook = openpyxl.load_workbook(WORKBOOK, data_only=False)
     assert workbook.sheetnames == SHEETS
     assert all(sheet.freeze_panes == "A2" for sheet in workbook.worksheets)
+    source_sheet = workbook["来源观测统计"]
+    assert 'K2=""' in source_sheet["M2"].value
+    assert "K2<=0" in source_sheet["M2"].value
+    assert 'L2=""' in source_sheet["N2"].value
+    assert "L2<=0" in source_sheet["N2"].value
 
 
 def test_generator_output_is_byte_reproducible(tmp_path):

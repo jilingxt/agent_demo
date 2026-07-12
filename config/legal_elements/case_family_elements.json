@@ -49,7 +49,7 @@
     {
       "family_id": "status_duty",
       "name": "特定身份与义务",
-      "factual_elements": ["qualified_actor", "duty_exists", "prohibited_conduct", "authorization_absent", "duty_violation_supported"]
+      "factual_elements": ["qualification_record_present", "duty_record_present", "conduct_recorded", "authorization_record_absent", "status_duty_facts_supported"]
     }
   ]
 }

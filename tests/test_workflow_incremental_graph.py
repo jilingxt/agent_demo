@@ -57,7 +57,7 @@ class WorkflowIncrementalGraphTests(unittest.TestCase):
         self.assertTrue(
             any(item.status == "authority_anchored" for item in result.claim_assessments)
         )
-        self.assertIsNotNone(result.bayesian_result)
+        self.assertIsNone(result.bayesian_result)
 
 
 if __name__ == "__main__":

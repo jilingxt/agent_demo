@@ -38,7 +38,8 @@ def test_injury_scenario_uses_general_conduct_result_model():
     result = EvidenceReasoningEngine().evaluate("故意伤害", graph)
 
     assert result.bayesian_result["selected_model_ids"] == ["conduct_result"]
-    assert result.model_versions["bayesian"] == ["conduct_result:1"]
+    assert result.model_versions["bayesian"] == "conduct_result:1"
+    assert result.model_versions["bayesian_models"] == ["conduct_result:1"]
     assert "intentional_injury" not in str(result.bayesian_result)
     assert any(claim.behavior_type == "causation" for claim in result.claims)
 
@@ -60,6 +61,10 @@ def test_mixed_case_can_run_multiple_equal_priority_models():
         "conduct_result",
         "property_taking",
     ]
+    assert result.bayesian_result["parameter_hash"] not in {
+        run["parameter_hash"] for run in result.bayesian_result["runs"]
+    }
+    assert all(":" in key for key in result.bayesian_result["soft_evidence"])
     assert {claim.behavior_type for claim in result.claims}.issuperset(
         {"causation", "taking_supported"}
     )

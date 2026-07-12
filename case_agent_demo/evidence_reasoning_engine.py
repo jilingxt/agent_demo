@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field, replace
+import hashlib
+import json
 from pathlib import Path
 from typing import Mapping, Sequence
 
@@ -115,9 +117,13 @@ class EvidenceReasoningEngine:
         bayesian_result = _tool_result_to_dict(tool_result)
         model_versions: dict[str, object] = {"subjective": _SUBJECTIVE_MODEL_VERSION}
         if bayesian_result is not None:
-            model_versions["bayesian"] = [
+            bayesian_versions = [
                 f"{run.model_id}:{run.version}" for run in tool_result.runs
             ]
+            model_versions["bayesian"] = (
+                bayesian_versions[0] if len(bayesian_versions) == 1 else "multi_model"
+            )
+            model_versions["bayesian_models"] = bayesian_versions
             scored_claims, assessments = _append_derived_assessments(
                 scored_claims,
                 assessments,
@@ -133,7 +139,7 @@ class EvidenceReasoningEngine:
                 "assertion_count": len(assertions),
                 "claim_count": len(scored_claims),
                 "case_domains": case_domains,
-                "bayesian_models": model_versions.get("bayesian", []),
+                "bayesian_models": model_versions.get("bayesian_models", []),
             },
             model_versions=model_versions,
         )
@@ -206,21 +212,45 @@ def _tool_result_to_dict(tool_result: BayesianToolResult) -> dict | None:
     node_values: dict[str, float] = {}
     soft_evidence: dict[str, float] = {}
     soft_evidence_sources: dict[str, list[str]] = {}
+    multi_run = len(tool_result.runs) > 1
+    model_node_values: dict[str, dict[str, float]] = {}
+    model_soft_evidence: dict[str, dict[str, float]] = {}
     for run in tool_result.runs:
-        node_values.update(run.derived_values)
-        soft_evidence.update(run.soft_evidence)
+        namespace = f"{run.model_id}:{run.group_key}"
+        model_node_values[namespace] = dict(run.node_values)
+        model_soft_evidence[namespace] = dict(run.soft_evidence)
+        for node_id, value in run.derived_values.items():
+            key = f"{namespace}:{node_id}" if multi_run else node_id
+            node_values[key] = value
+        for node_id, value in run.soft_evidence.items():
+            key = f"{namespace}:{node_id}" if multi_run else node_id
+            soft_evidence[key] = value
         for node_id, claim_ids in run.soft_evidence_sources.items():
-            soft_evidence_sources.setdefault(node_id, []).extend(claim_ids)
+            key = f"{namespace}:{node_id}" if multi_run else node_id
+            soft_evidence_sources.setdefault(key, []).extend(claim_ids)
     first = tool_result.runs[0]
+    calibration_statuses = {
+        f"{run.model_id}:{run.group_key}": run.calibration_status for run in tool_result.runs
+    }
+    parameter_hashes = {
+        f"{run.model_id}:{run.group_key}": run.parameter_hash for run in tool_result.runs
+    }
+    combined_hash = hashlib.sha256(
+        json.dumps(parameter_hashes, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
     return {
         "selected_model_ids": tool_result.selected_model_ids,
         "skipped_model_ids": tool_result.skipped_model_ids,
         "model_id": first.model_id if len(tool_result.runs) == 1 else "multi_model",
         "version": first.version if len(tool_result.runs) == 1 else "registry-v1",
-        "calibration_status": first.calibration_status,
-        "parameter_hash": first.parameter_hash,
+        "calibration_status": first.calibration_status if not multi_run else "multi_model",
+        "calibration_statuses": calibration_statuses,
+        "parameter_hash": first.parameter_hash if not multi_run else combined_hash,
+        "parameter_hashes": parameter_hashes,
         "node_values": node_values,
+        "model_node_values": model_node_values,
         "soft_evidence": soft_evidence,
+        "model_soft_evidence": model_soft_evidence,
         "soft_evidence_sources": soft_evidence_sources,
         "runs": [asdict(run) for run in tool_result.runs],
     }

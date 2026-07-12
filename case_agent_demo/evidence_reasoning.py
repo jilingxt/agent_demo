@@ -14,6 +14,8 @@ from case_agent_demo.models import (
     EvidenceClaim,
     EvidenceGraph,
     infer_claim_type,
+    infer_claim_types,
+    infer_predicate_stance,
 )
 
 
@@ -269,9 +271,19 @@ class SubjectiveEvidenceEngine:
 
 class AssertionNormalizer:
     def normalize_graph(self, graph: EvidenceGraph) -> list[EvidenceAssertion]:
-        return [self.normalize_node(node) for node in graph.nodes if node.node_type == "fact" and node.status == "active"]
+        assertions: list[EvidenceAssertion] = []
+        for node in graph.nodes:
+            if node.node_type != "fact" or node.status != "active":
+                continue
+            explicit = node.metadata.get("predicate")
+            predicates = [str(explicit)] if explicit else infer_claim_types(
+                node.behavior or node.summary,
+                node.object,
+            )
+            assertions.extend(self.normalize_node(node, predicate) for predicate in predicates)
+        return assertions
 
-    def normalize_node(self, node) -> EvidenceAssertion:
+    def normalize_node(self, node, predicate: str | None = None) -> EvidenceAssertion:
         metadata = {
             **node.metadata,
             "extraction_quality": node.metadata.get("extraction_quality", node.confidence),
@@ -279,12 +291,18 @@ class AssertionNormalizer:
             "source_material_id": node.source_material_id,
         }
         actor = metadata.get("actor", node.person)
-        predicate = metadata.get("predicate") or node.claim_type or infer_claim_type(node.behavior or node.summary, node.object)
-        stance = _normalize_stance(metadata.get("stance", node.polarity))
+        predicate = predicate or metadata.get("predicate") or infer_claim_type(
+            node.behavior or node.summary,
+            node.object,
+        )
+        stance_value = metadata.get("stance")
+        if stance_value is None:
+            stance_value = infer_predicate_stance(node.behavior or node.summary, predicate)
+        stance = _normalize_stance(stance_value)
         target_person = metadata.get("target_person", metadata.get("target", ""))
         origin_evidence = metadata.get("origin_evidence", node.raw_ref or node.source_material_id)
         return EvidenceAssertion(
-            assertion_id=f"AS-{node.node_id}",
+            assertion_id=f"AS-{node.node_id}-{predicate}",
             node_id=node.node_id,
             declarant=metadata.get("declarant", node.source_party),
             actor=actor,

@@ -27,6 +27,7 @@ class RegisteredBayesianModel:
     trigger_predicates: tuple[str, ...]
     input_map: Mapping[str, str]
     derived_nodes: tuple[str, ...]
+    anchor_inputs: tuple[str, ...]
     priority: int = 0
 
 
@@ -36,6 +37,7 @@ class BayesianModelRun:
     version: str
     calibration_status: str
     parameter_hash: str
+    group_key: str
     input_claim_ids: list[str]
     soft_evidence: dict[str, float]
     soft_evidence_sources: dict[str, list[str]]
@@ -108,7 +110,11 @@ class BayesianEvidenceTool:
             )
 
         assessments = {item.claim_id: item for item in claim_assessments}
-        runs = [self._run(model, claims, assessments) for model in selected]
+        runs = [
+            run
+            for model in selected
+            for run in self._run_model(model, claims, assessments)
+        ]
         return BayesianToolResult(
             selected_model_ids=[model.model_id for model in selected],
             skipped_model_ids=[
@@ -117,23 +123,47 @@ class BayesianEvidenceTool:
             runs=runs,
         )
 
-    def _run(
+    def _run_model(
         self,
         model: RegisteredBayesianModel,
         claims: list[EvidenceClaim],
         assessments: Mapping[str, ClaimAssessment],
-    ) -> BayesianModelRun:
+    ) -> list[BayesianModelRun]:
         if not model.path.is_file():
             raise ModelValidationError(f"model file does not exist: {model.path}")
+
+        anchor_claims = [
+            claim
+            for claim in claims
+            if model.input_map.get(claim.behavior_type) in model.anchor_inputs
+            and _assessment_support(assessments.get(claim.claim_id)) is not None
+        ]
+        grouped: dict[str, list[EvidenceClaim]] = {}
+        for anchor in anchor_claims:
+            key = _claim_group_key(anchor)
+            if key in grouped:
+                continue
+            grouped[key] = []
+            for claim in claims:
+                if _claims_compatible(anchor, claim, model):
+                    grouped[key].append(claim)
+        return [self._run_group(model, group_key, group, assessments) for group_key, group in grouped.items()]
+
+    def _run_group(
+        self,
+        model: RegisteredBayesianModel,
+        group_key: str,
+        claims: list[EvidenceClaim],
+        assessments: Mapping[str, ClaimAssessment],
+    ) -> BayesianModelRun:
 
         soft_evidence: dict[str, float] = {}
         soft_evidence_sources: dict[str, list[str]] = {}
         for claim in claims:
             input_node = model.input_map.get(claim.behavior_type)
-            assessment = assessments.get(claim.claim_id)
-            if input_node is None or assessment is None:
+            value = _assessment_support(assessments.get(claim.claim_id))
+            if input_node is None or value is None:
                 continue
-            value = _assessment_support(assessment)
             current = soft_evidence.get(input_node)
             if current is None or value > current:
                 soft_evidence[input_node] = value
@@ -147,6 +177,7 @@ class BayesianEvidenceTool:
             version=result["version"],
             calibration_status=result["calibration_status"],
             parameter_hash=result["parameter_hash"],
+            group_key=group_key,
             input_claim_ids=list(
                 dict.fromkeys(
                     claim_id
@@ -184,6 +215,8 @@ def _registered_model(item: object, base_dir: Path) -> RegisteredBayesianModel:
     for field_name in ("domains", "trigger_predicates", "derived_nodes"):
         if not isinstance(item[field_name], list):
             raise ModelValidationError(f"Bayesian registry {field_name} must be a list")
+    if "anchor_inputs" in item and not isinstance(item["anchor_inputs"], list):
+        raise ModelValidationError("Bayesian registry anchor_inputs must be a list")
     priority = item.get("priority", 0)
     if isinstance(priority, bool) or not isinstance(priority, int):
         raise ModelValidationError("Bayesian registry priority must be integer 0")
@@ -194,6 +227,13 @@ def _registered_model(item: object, base_dir: Path) -> RegisteredBayesianModel:
         trigger_predicates=tuple(str(value) for value in item["trigger_predicates"]),
         input_map={str(key): str(value) for key, value in item["input_map"].items()},
         derived_nodes=tuple(str(value) for value in item["derived_nodes"]),
+        anchor_inputs=tuple(
+            str(value)
+            for value in item.get(
+                "anchor_inputs",
+                list(dict.fromkeys(str(value) for value in item["input_map"].values()))[:1],
+            )
+        ),
         priority=priority,
     )
 
@@ -209,6 +249,7 @@ def _validate_registered_model(model: RegisteredBayesianModel) -> None:
     node_ids = set(result["node_values"])
     missing_inputs = set(model.input_map.values()) - node_ids
     missing_outputs = set(model.derived_nodes) - node_ids
+    missing_anchors = set(model.anchor_inputs) - node_ids
     if missing_inputs:
         raise ModelValidationError(
             f"registry input_map references unknown nodes: {sorted(missing_inputs)}"
@@ -217,13 +258,25 @@ def _validate_registered_model(model: RegisteredBayesianModel) -> None:
         raise ModelValidationError(
             f"registry derived_nodes references unknown nodes: {sorted(missing_outputs)}"
         )
+    if missing_anchors:
+        raise ModelValidationError(
+            f"registry anchor_inputs references unknown nodes: {sorted(missing_anchors)}"
+        )
 
 
-def _assessment_support(assessment: ClaimAssessment) -> float:
+def _assessment_support(assessment: ClaimAssessment | None) -> float | None:
+    if assessment is None:
+        return None
     if assessment.support_index:
         return min(1.0, max(0.0, float(assessment.support_index)))
     if assessment.opinion is None:
-        return 0.0
+        return None
+    if (
+        assessment.opinion.support == 0
+        and assessment.opinion.opposition == 0
+        and assessment.opinion.uncertainty >= 1
+    ):
+        return None
     return min(
         1.0,
         max(
@@ -232,3 +285,30 @@ def _assessment_support(assessment: ClaimAssessment) -> float:
             + 0.5 * float(assessment.opinion.uncertainty),
         ),
     )
+
+
+def _claim_group_key(claim: EvidenceClaim) -> str:
+    target = claim.target_person or claim.object or "unknown-target"
+    event = claim.event_id or f"unknown-event:{claim.claim_id}"
+    return "|".join((event, claim.subject or "unknown-actor", target))
+
+
+def _claims_compatible(
+    anchor: EvidenceClaim,
+    candidate: EvidenceClaim,
+    model: RegisteredBayesianModel,
+) -> bool:
+    if bool(anchor.event_id) != bool(candidate.event_id):
+        return False
+    if not anchor.event_id and candidate.claim_id != anchor.claim_id:
+        return False
+    if anchor.event_id and candidate.event_id != anchor.event_id:
+        return False
+    candidate_input = model.input_map.get(candidate.behavior_type)
+    if candidate_input in model.anchor_inputs and candidate.subject != anchor.subject:
+        return False
+    anchor_entities = {value for value in (anchor.subject, anchor.target_person, anchor.object) if value}
+    candidate_entities = {
+        value for value in (candidate.subject, candidate.target_person, candidate.object) if value
+    }
+    return not anchor_entities or not candidate_entities or bool(anchor_entities & candidate_entities)

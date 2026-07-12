@@ -14,6 +14,26 @@ from case_agent_demo.models import (
 
 
 class FinalConflictAgentTests(unittest.TestCase):
+    def test_legacy_full_node_values_only_review_registered_derived_nodes(self):
+        rag = LegalRAGResult(matches=[], chunks=[], query="", purpose="final_review")
+
+        issues = FinalConflictAgent().review(
+            "一般案件",
+            CaseGraph(),
+            "",
+            rag,
+            bayesian_result={
+                "node_values": {
+                    "conduct": 0.1,
+                    "result_exists": 0.1,
+                    "causation": 0.8,
+                }
+            },
+        )
+
+        assert not any(issue.issue_type == "derived_fact_insufficient" for issue in issues)
+        assert not any(issue.issue_type == "causation_insufficient" for issue in issues)
+
     def test_generates_validation_issues_and_challenge_compatibility(self):
         graph = CaseGraph(
             facts=[

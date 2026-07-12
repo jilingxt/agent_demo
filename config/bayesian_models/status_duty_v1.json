@@ -2,22 +2,22 @@
   "model_id": "status_duty",
   "version": "1",
   "calibration_status": "expert_prior_unvalidated",
-  "query_nodes": ["duty_violation_supported"],
+  "query_nodes": ["status_duty_facts_supported"],
   "nodes": [
-    {"id": "qualified_actor", "type": "prior", "prior": 0.20},
-    {"id": "duty_exists", "type": "prior", "prior": 0.20},
-    {"id": "prohibited_conduct", "type": "prior", "prior": 0.10},
-    {"id": "authorization_absent", "type": "prior", "prior": 0.20},
+    {"id": "qualification_record_present", "type": "prior", "prior": 0.20},
+    {"id": "duty_record_present", "type": "prior", "prior": 0.20},
+    {"id": "conduct_recorded", "type": "prior", "prior": 0.10},
+    {"id": "authorization_record_absent", "type": "prior", "prior": 0.20},
     {
-      "id": "duty_violation_supported",
+      "id": "status_duty_facts_supported",
       "type": "logistic",
-      "parents": ["qualified_actor", "duty_exists", "prohibited_conduct", "authorization_absent"],
+      "parents": ["qualification_record_present", "duty_record_present", "conduct_recorded", "authorization_record_absent"],
       "intercept": -3.2,
       "weights": {
-        "qualified_actor": 1.0,
-        "duty_exists": 1.2,
-        "prohibited_conduct": 1.8,
-        "authorization_absent": 1.2
+        "qualification_record_present": 1.0,
+        "duty_record_present": 1.2,
+        "conduct_recorded": 1.8,
+        "authorization_record_absent": 1.2
       }
     }
   ]

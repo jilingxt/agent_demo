@@ -36,6 +36,7 @@
         "alternative_cause": "alternative_cause"
       },
       "derived_nodes": ["causation"],
+      "anchor_inputs": ["conduct"],
       "priority": 0
     },
     {
@@ -57,6 +58,7 @@
         "alternative_explanation": "alternative_explanation"
       },
       "derived_nodes": ["taking_supported"],
+      "anchor_inputs": ["taking_action"],
       "priority": 0
     },
     {
@@ -76,6 +78,7 @@
         "persistence_or_group": "persistence_or_group"
       },
       "derived_nodes": ["order_disruption"],
+      "anchor_inputs": ["conduct"],
       "priority": 0
     },
     {
@@ -95,6 +98,7 @@
         "control_failure": "control_failure"
       },
       "derived_nodes": ["public_danger"],
+      "anchor_inputs": ["hazardous_conduct"],
       "priority": 0
     },
     {
@@ -102,18 +106,19 @@
       "path": "status_duty_v1.json",
       "domains": ["social_management", "status_duty"],
       "trigger_predicates": [
-        "qualified_actor",
-        "duty_exists",
-        "prohibited_conduct",
-        "authorization_absent"
+        "qualification_record_present",
+        "duty_record_present",
+        "conduct_recorded",
+        "authorization_record_absent"
       ],
       "input_map": {
-        "qualified_actor": "qualified_actor",
-        "duty_exists": "duty_exists",
-        "prohibited_conduct": "prohibited_conduct",
-        "authorization_absent": "authorization_absent"
+        "qualification_record_present": "qualification_record_present",
+        "duty_record_present": "duty_record_present",
+        "conduct_recorded": "conduct_recorded",
+        "authorization_record_absent": "authorization_record_absent"
       },
-      "derived_nodes": ["duty_violation_supported"],
+      "derived_nodes": ["status_duty_facts_supported"],
+      "anchor_inputs": ["conduct_recorded"],
       "priority": 0
     }
   ]

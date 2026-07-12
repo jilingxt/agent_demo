@@ -40,6 +40,38 @@ def _assessment(claim_id: str, support: float) -> ClaimAssessment:
     )
 
 
+def _conduct_registry(tmp_path):
+    path = tmp_path / "conduct.json"
+    path.write_text(
+        json.dumps({
+            "model_id": "conduct_result",
+            "version": "1",
+            "calibration_status": "expert_prior_unvalidated",
+            "nodes": [
+                {"id": "conduct", "type": "prior", "prior": 0.2},
+                {"id": "result_exists", "type": "prior", "prior": 0.2},
+                {"id": "causation", "type": "logistic", "parents": ["conduct", "result_exists"], "intercept": -2, "weights": {"conduct": 2, "result_exists": 1}},
+            ],
+        }),
+        encoding="utf-8",
+    )
+    registry_path = tmp_path / "registry.json"
+    registry_path.write_text(
+        json.dumps({"version": "1", "models": [{
+            "model_id": "conduct_result",
+            "path": path.name,
+            "domains": [],
+            "trigger_predicates": ["violence", "injury_exists"],
+            "input_map": {"violence": "conduct", "injury_exists": "result_exists"},
+            "derived_nodes": ["causation"],
+            "anchor_inputs": ["conduct"],
+            "priority": 0,
+        }]}),
+        encoding="utf-8",
+    )
+    return BayesianModelRegistry(registry_path)
+
+
 def test_registry_selects_all_matching_models_without_case_priority(tmp_path):
     _write_model(tmp_path, "property_taking", "taking_action", "taking_supported")
     _write_model(tmp_path, "conduct_result", "conduct", "causation")
@@ -147,8 +179,8 @@ def test_tool_lineage_only_keeps_claims_that_contribute_the_selected_maximum(tmp
         encoding="utf-8",
     )
     claims = [
-        EvidenceClaim("C-WEAK", "甲", "taking_property"),
-        EvidenceClaim("C-STRONG", "乙", "taking_property"),
+        EvidenceClaim("C-WEAK", "甲", "taking_property", target_person="手机", event_id="E1"),
+        EvidenceClaim("C-STRONG", "甲", "taking_property", target_person="手机", event_id="E1"),
     ]
 
     result = BayesianEvidenceTool(BayesianModelRegistry(registry_path)).evaluate(
@@ -235,3 +267,58 @@ def test_registry_rejects_priority_and_missing_models(tmp_path):
     registry_path.write_text(json.dumps(data), encoding="utf-8")
     with pytest.raises(ModelValidationError, match="model file does not exist"):
         BayesianModelRegistry(registry_path)
+
+
+def test_unknown_assessment_is_omitted_instead_of_becoming_false(tmp_path):
+    claim = EvidenceClaim("C-UNKNOWN", "甲", "violence", event_id="E1")
+
+    result = BayesianEvidenceTool(_conduct_registry(tmp_path)).evaluate(
+        [], [claim], [ClaimAssessment(claim_id=claim.claim_id, status="unassessed")]
+    )
+
+    assert result.runs == []
+
+
+def test_model_runs_are_separated_by_event_and_anchor_actor(tmp_path):
+    claims = [
+        EvidenceClaim("C-A", "甲", "violence", target_person="乙", event_id="E1"),
+        EvidenceClaim("C-C", "丙", "violence", target_person="丁", event_id="E2"),
+        EvidenceClaim("C-D", "丁", "injury_exists", target_person="丁", event_id="E2"),
+    ]
+    assessments = [_assessment(claim.claim_id, 0.8) for claim in claims]
+
+    result = BayesianEvidenceTool(_conduct_registry(tmp_path)).evaluate([], claims, assessments)
+
+    assert len(result.runs) == 2
+    runs = {run.group_key: run for run in result.runs}
+    assert runs["E1|甲|乙"].soft_evidence == {"conduct": 0.8}
+    assert runs["E2|丙|丁"].soft_evidence == {"conduct": 0.8, "result_exists": 0.8}
+
+
+def test_same_event_multiple_actors_get_separate_runs_with_shared_result(tmp_path):
+    claims = [
+        EvidenceClaim("C-A", "甲", "violence", target_person="乙", event_id="E1"),
+        EvidenceClaim("C-C", "丙", "violence", target_person="乙", event_id="E1"),
+        EvidenceClaim("C-B", "乙", "injury_exists", target_person="乙", event_id="E1"),
+    ]
+
+    result = BayesianEvidenceTool(_conduct_registry(tmp_path)).evaluate(
+        [], claims, [_assessment(claim.claim_id, 0.8) for claim in claims]
+    )
+
+    assert {run.group_key for run in result.runs} == {"E1|甲|乙", "E1|丙|乙"}
+    assert all("result_exists" in run.soft_evidence for run in result.runs)
+
+
+def test_missing_event_id_does_not_join_separate_claims(tmp_path):
+    claims = [
+        EvidenceClaim("C-A", "甲", "violence", target_person="乙"),
+        EvidenceClaim("C-B", "乙", "injury_exists", target_person="乙"),
+    ]
+
+    result = BayesianEvidenceTool(_conduct_registry(tmp_path)).evaluate(
+        [], claims, [_assessment(claim.claim_id, 0.8) for claim in claims]
+    )
+
+    assert len(result.runs) == 1
+    assert result.runs[0].soft_evidence == {"conduct": 0.8}

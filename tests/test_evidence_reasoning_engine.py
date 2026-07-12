@@ -75,7 +75,8 @@ def test_conduct_result_scenario_combines_subjective_authority_and_bayesian_laye
     assert assessments[claims["injury_grade"].claim_id].status == "authority_anchored"
     assert result.bayesian_result["node_values"]["causation"] > 0.5
     assert assessments[claims["violence"].claim_id].status == "contested"
-    assert result.model_versions["bayesian"] == ["conduct_result:1"]
+    assert result.model_versions["bayesian"] == "conduct_result:1"
+    assert result.model_versions["bayesian_models"] == ["conduct_result:1"]
     causation = assessments[claims["causation"].claim_id]
     assert causation.status == "bayesian_derived"
     assert causation.bayesian_posterior == round(result.bayesian_result["node_values"]["causation"], 4)

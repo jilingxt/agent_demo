@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from case_agent_demo.bayesian_tool import BayesianModelRegistry
 from case_agent_demo.models import Challenge, ClaimAssessment, EvidenceGraph, LegalRAGResult
 
 
@@ -32,7 +33,7 @@ SUPPLEMENTARY_INVESTIGATION_ACTIONS = {
     "taking_supported": ["核对原占有状态和财物权属", "补充财物流向、监控或电子轨迹", "审查替代性解释"],
     "order_disruption": ["固定公共场所秩序受到影响的客观记录", "核对持续时间、参与人数和实际影响"],
     "public_danger": ["固定危险物品、危险状态和暴露范围", "核对控制措施及实际风险"],
-    "duty_violation_supported": ["核对行为人资格、具体义务和授权范围", "固定违反义务行为的原始记录"],
+    "status_duty_facts_supported": ["核对资格、职责、授权文书及其版本", "固定相关行为的原始记录并交由法律规则审查"],
     "general": ["补充核对原始材料来源", "补充询问相关人员"],
 }
 
@@ -81,7 +82,7 @@ class FinalConflictAgent:
         if bayesian_result and not any(
             assessment.status == "bayesian_derived" for assessment in assessments
         ):
-            for node_id, value in bayesian_result.get("node_values", {}).items():
+            for node_id, value in _legacy_derived_values(bayesian_result).items():
                 if float(value) >= 0.5:
                     continue
                 issue_type = "causation_insufficient" if node_id == "causation" else "derived_fact_insufficient"
@@ -263,3 +264,23 @@ def _claim_issue(
         reason=reason,
         required_action="；".join(actions),
     )
+
+
+def _legacy_derived_values(bayesian_result: dict) -> dict[str, float]:
+    runs = bayesian_result.get("runs")
+    if isinstance(runs, list):
+        values: dict[str, float] = {}
+        for run in runs:
+            if isinstance(run, dict) and isinstance(run.get("derived_values"), dict):
+                values.update(run["derived_values"])
+        return values
+    derived_nodes = {
+        node_id
+        for model in BayesianModelRegistry().models
+        for node_id in model.derived_nodes
+    }
+    return {
+        node_id: value
+        for node_id, value in bayesian_result.get("node_values", {}).items()
+        if node_id in derived_nodes
+    }

@@ -26,12 +26,23 @@ def test_registry_contains_equal_priority_peer_families():
 
 def test_every_registered_model_loads_and_declares_only_factual_outputs():
     registry = BayesianModelRegistry(REGISTRY_PATH)
-    forbidden = {"guilt", "criminal_liability", "punishment", "legal_applicability"}
+    forbidden = {
+        "guilt",
+        "criminal_liability",
+        "punishment",
+        "legal_applicability",
+        "qualified_actor",
+        "duty_exists",
+        "authorization_absent",
+        "prohibited_conduct",
+        "duty_violation_supported",
+    }
 
     for registered in registry.models:
         result = BayesianInferenceEngine(registered.path).infer({})
         assert result["model_id"] == registered.model_id
         assert set(registered.derived_nodes).isdisjoint(forbidden)
+        assert set(result["node_values"]).isdisjoint(forbidden)
         assert set(registered.derived_nodes).issubset(result["node_values"])
 
 
@@ -97,12 +108,12 @@ def test_public_order_public_safety_and_status_models_move_with_evidence():
         ),
         (
             "status_duty_v1.json",
-            "duty_violation_supported",
+            "status_duty_facts_supported",
             {
-                "qualified_actor": 0.9,
-                "duty_exists": 0.9,
-                "prohibited_conduct": 0.9,
-                "authorization_absent": 0.9,
+                "qualification_record_present": 0.9,
+                "duty_record_present": 0.9,
+                "conduct_recorded": 0.9,
+                "authorization_record_absent": 0.9,
             },
         ),
     ]
