@@ -1,0 +1,24 @@
+{
+  "model_id": "public_order",
+  "version": "1",
+  "calibration_status": "expert_prior_unvalidated",
+  "query_nodes": ["order_disruption"],
+  "nodes": [
+    {"id": "conduct", "type": "prior", "prior": 0.20},
+    {"id": "public_context", "type": "prior", "prior": 0.30},
+    {"id": "operational_impact", "type": "prior", "prior": 0.15},
+    {"id": "persistence_or_group", "type": "prior", "prior": 0.15},
+    {
+      "id": "order_disruption",
+      "type": "logistic",
+      "parents": ["conduct", "public_context", "operational_impact", "persistence_or_group"],
+      "intercept": -3.0,
+      "weights": {
+        "conduct": 1.8,
+        "public_context": 0.8,
+        "operational_impact": 1.5,
+        "persistence_or_group": 1.0
+      }
+    }
+  ]
+}

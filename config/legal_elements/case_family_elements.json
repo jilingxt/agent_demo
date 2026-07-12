@@ -1,0 +1,55 @@
+{
+  "version": "1",
+  "scope_note": "本表只抽象可由证据评价的事实要素；罪名、违法成立、处罚选择及法条适用仍由确定性规则和人工法律审查完成。",
+  "source_laws": [
+    "中华人民共和国刑法（2023年修正）",
+    "中华人民共和国治安管理处罚法（2025年修订）"
+  ],
+  "universal_factual_elements": [
+    "actor_identity",
+    "conduct",
+    "target_or_object",
+    "time_and_place",
+    "result_or_risk",
+    "causation_or_connection",
+    "alternative_explanation"
+  ],
+  "deterministic_legal_elements": [
+    "age_threshold",
+    "amount_threshold",
+    "frequency_threshold",
+    "legal_defense",
+    "administrative_criminal_boundary",
+    "jurisdiction",
+    "limitation_period",
+    "legal_applicability",
+    "punishment"
+  ],
+  "case_families": [
+    {
+      "family_id": "conduct_result",
+      "name": "行为、结果与因果关系",
+      "factual_elements": ["conduct", "result_exists", "mechanism_consistency", "temporal_consistency", "alternative_cause", "causation"]
+    },
+    {
+      "family_id": "property_taking",
+      "name": "财物占有与转移",
+      "factual_elements": ["prior_possession", "taking_action", "possession_transfer", "property_trace", "alternative_explanation", "taking_supported"]
+    },
+    {
+      "family_id": "public_order",
+      "name": "公共秩序影响",
+      "factual_elements": ["conduct", "public_context", "operational_impact", "persistence_or_group", "order_disruption"]
+    },
+    {
+      "family_id": "public_safety",
+      "name": "公共安全危险",
+      "factual_elements": ["hazardous_conduct", "dangerous_object_or_condition", "exposure", "control_failure", "public_danger"]
+    },
+    {
+      "family_id": "status_duty",
+      "name": "特定身份与义务",
+      "factual_elements": ["qualified_actor", "duty_exists", "prohibited_conduct", "authorization_absent", "duty_violation_supported"]
+    }
+  ]
+}

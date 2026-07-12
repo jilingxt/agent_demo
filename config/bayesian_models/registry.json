@@ -1,0 +1,120 @@
+{
+  "version": "1",
+  "models": [
+    {
+      "model_id": "conduct_result",
+      "path": "conduct_result_v1.json",
+      "domains": ["personal_rights", "property_damage", "criminal_injury"],
+      "trigger_predicates": [
+        "violence",
+        "violent_action",
+        "physical_contact",
+        "injury_exists",
+        "injury_grade",
+        "injury_consequence",
+        "property_damage",
+        "damage_exists",
+        "mechanism_compatible",
+        "mechanism_consistency",
+        "temporal_proximity",
+        "temporal_consistency",
+        "alternative_cause"
+      ],
+      "input_map": {
+        "violence": "conduct",
+        "violent_action": "conduct",
+        "physical_contact": "conduct",
+        "property_damage": "conduct",
+        "injury_exists": "result_exists",
+        "injury_grade": "result_exists",
+        "injury_consequence": "result_exists",
+        "damage_exists": "result_exists",
+        "mechanism_compatible": "mechanism_consistency",
+        "mechanism_consistency": "mechanism_consistency",
+        "temporal_proximity": "temporal_consistency",
+        "temporal_consistency": "temporal_consistency",
+        "alternative_cause": "alternative_cause"
+      },
+      "derived_nodes": ["causation"],
+      "priority": 0
+    },
+    {
+      "model_id": "property_taking",
+      "path": "property_taking_v1.json",
+      "domains": ["property_rights", "theft"],
+      "trigger_predicates": [
+        "taking_property",
+        "prior_possession",
+        "possession_transfer",
+        "property_trace",
+        "alternative_explanation"
+      ],
+      "input_map": {
+        "prior_possession": "prior_possession",
+        "taking_property": "taking_action",
+        "possession_transfer": "possession_transfer",
+        "property_trace": "property_trace",
+        "alternative_explanation": "alternative_explanation"
+      },
+      "derived_nodes": ["taking_supported"],
+      "priority": 0
+    },
+    {
+      "model_id": "public_order",
+      "path": "public_order_v1.json",
+      "domains": ["public_order", "public_security_punishment"],
+      "trigger_predicates": [
+        "public_order_conduct",
+        "public_context",
+        "operational_impact",
+        "persistence_or_group"
+      ],
+      "input_map": {
+        "public_order_conduct": "conduct",
+        "public_context": "public_context",
+        "operational_impact": "operational_impact",
+        "persistence_or_group": "persistence_or_group"
+      },
+      "derived_nodes": ["order_disruption"],
+      "priority": 0
+    },
+    {
+      "model_id": "public_safety",
+      "path": "public_safety_v1.json",
+      "domains": ["public_safety"],
+      "trigger_predicates": [
+        "hazardous_conduct",
+        "dangerous_object_or_condition",
+        "exposure",
+        "control_failure"
+      ],
+      "input_map": {
+        "hazardous_conduct": "hazardous_conduct",
+        "dangerous_object_or_condition": "dangerous_object_or_condition",
+        "exposure": "exposure",
+        "control_failure": "control_failure"
+      },
+      "derived_nodes": ["public_danger"],
+      "priority": 0
+    },
+    {
+      "model_id": "status_duty",
+      "path": "status_duty_v1.json",
+      "domains": ["social_management", "status_duty"],
+      "trigger_predicates": [
+        "qualified_actor",
+        "duty_exists",
+        "prohibited_conduct",
+        "authorization_absent"
+      ],
+      "input_map": {
+        "qualified_actor": "qualified_actor",
+        "duty_exists": "duty_exists",
+        "prohibited_conduct": "prohibited_conduct",
+        "authorization_absent": "authorization_absent"
+      },
+      "derived_nodes": ["duty_violation_supported"],
+      "priority": 0
+    }
+  ]
+}

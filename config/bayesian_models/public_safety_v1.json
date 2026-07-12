@@ -1,0 +1,29 @@
+{
+  "model_id": "public_safety",
+  "version": "1",
+  "calibration_status": "expert_prior_unvalidated",
+  "query_nodes": ["public_danger"],
+  "nodes": [
+    {"id": "hazardous_conduct", "type": "prior", "prior": 0.15},
+    {"id": "dangerous_object_or_condition", "type": "prior", "prior": 0.15},
+    {"id": "exposure", "type": "prior", "prior": 0.10},
+    {"id": "control_failure", "type": "prior", "prior": 0.10},
+    {
+      "id": "public_danger",
+      "type": "logistic",
+      "parents": [
+        "hazardous_conduct",
+        "dangerous_object_or_condition",
+        "exposure",
+        "control_failure"
+      ],
+      "intercept": -3.2,
+      "weights": {
+        "hazardous_conduct": 1.8,
+        "dangerous_object_or_condition": 1.4,
+        "exposure": 1.5,
+        "control_failure": 1.0
+      }
+    }
+  ]
+}

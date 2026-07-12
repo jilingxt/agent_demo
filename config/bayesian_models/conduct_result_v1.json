@@ -1,0 +1,32 @@
+{
+  "model_id": "conduct_result",
+  "version": "1",
+  "calibration_status": "expert_prior_unvalidated",
+  "query_nodes": ["causation"],
+  "nodes": [
+    {"id": "conduct", "type": "prior", "prior": 0.15},
+    {"id": "result_exists", "type": "prior", "prior": 0.15},
+    {"id": "mechanism_consistency", "type": "prior", "prior": 0.30},
+    {"id": "temporal_consistency", "type": "prior", "prior": 0.30},
+    {"id": "alternative_cause", "type": "prior", "prior": 0.20},
+    {
+      "id": "causation",
+      "type": "logistic",
+      "parents": [
+        "conduct",
+        "result_exists",
+        "mechanism_consistency",
+        "temporal_consistency",
+        "alternative_cause"
+      ],
+      "intercept": -3.0,
+      "weights": {
+        "conduct": 1.8,
+        "result_exists": 1.2,
+        "mechanism_consistency": 1.5,
+        "temporal_consistency": 1.1,
+        "alternative_cause": -2.5
+      }
+    }
+  ]
+}

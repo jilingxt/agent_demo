@@ -1,0 +1,24 @@
+{
+  "model_id": "status_duty",
+  "version": "1",
+  "calibration_status": "expert_prior_unvalidated",
+  "query_nodes": ["duty_violation_supported"],
+  "nodes": [
+    {"id": "qualified_actor", "type": "prior", "prior": 0.20},
+    {"id": "duty_exists", "type": "prior", "prior": 0.20},
+    {"id": "prohibited_conduct", "type": "prior", "prior": 0.10},
+    {"id": "authorization_absent", "type": "prior", "prior": 0.20},
+    {
+      "id": "duty_violation_supported",
+      "type": "logistic",
+      "parents": ["qualified_actor", "duty_exists", "prohibited_conduct", "authorization_absent"],
+      "intercept": -3.2,
+      "weights": {
+        "qualified_actor": 1.0,
+        "duty_exists": 1.2,
+        "prohibited_conduct": 1.8,
+        "authorization_absent": 1.2
+      }
+    }
+  ]
+}
