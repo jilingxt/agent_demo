@@ -22,7 +22,7 @@ class WorkflowIncrementalGraphTests(unittest.TestCase):
         self.assertTrue(result.case_graph.claims)
         self.assertTrue(result.assertions)
         self.assertTrue(result.claim_assessments)
-        self.assertIsNone(result.bayesian_result)
+        self.assertEqual(result.bayesian_result["selected_model_ids"], ["property_taking"])
         self.assertIn("evidence_reasoning_engine", result.executed_agents)
 
 

@@ -122,7 +122,68 @@ def test_tool_runs_multiple_models_and_returns_audit_trace(tmp_path):
     assert run.calibration_status == "expert_prior_unvalidated"
     assert len(run.parameter_hash) == 64
     assert run.input_claim_ids == ["C-TAKE"]
+    assert run.soft_evidence_sources == {"taking_action": ["C-TAKE"]}
     assert run.derived_values["taking_supported"] > 0.2
+
+
+def test_tool_lineage_only_keeps_claims_that_contribute_the_selected_maximum(tmp_path):
+    _write_model(tmp_path, "property_taking", "taking_action", "taking_supported")
+    registry_path = tmp_path / "registry.json"
+    registry_path.write_text(
+        json.dumps(
+            {
+                "version": "1",
+                "models": [{
+                    "model_id": "property_taking",
+                    "path": "property_taking.json",
+                    "domains": [],
+                    "trigger_predicates": ["taking_property"],
+                    "input_map": {"taking_property": "taking_action"},
+                    "derived_nodes": ["taking_supported"],
+                    "priority": 0,
+                }],
+            }
+        ),
+        encoding="utf-8",
+    )
+    claims = [
+        EvidenceClaim("C-WEAK", "甲", "taking_property"),
+        EvidenceClaim("C-STRONG", "乙", "taking_property"),
+    ]
+
+    result = BayesianEvidenceTool(BayesianModelRegistry(registry_path)).evaluate(
+        [], claims, [_assessment("C-WEAK", 0.3), _assessment("C-STRONG", 0.8)]
+    )
+
+    assert result.runs[0].input_claim_ids == ["C-STRONG"]
+    assert result.runs[0].soft_evidence_sources == {"taking_action": ["C-STRONG"]}
+
+
+def test_registry_rejects_model_id_and_node_mapping_mismatches(tmp_path):
+    model_path = _write_model(tmp_path, "actual", "input", "output")
+    base_entry = {
+        "model_id": "declared",
+        "path": model_path.name,
+        "domains": [],
+        "trigger_predicates": ["predicate"],
+        "input_map": {"predicate": "input"},
+        "derived_nodes": ["output"],
+        "priority": 0,
+    }
+    registry_path = tmp_path / "registry.json"
+    registry_path.write_text(
+        json.dumps({"version": "1", "models": [base_entry]}), encoding="utf-8"
+    )
+    with pytest.raises(ModelValidationError, match="does not match"):
+        BayesianModelRegistry(registry_path)
+
+    base_entry["model_id"] = "actual"
+    base_entry["input_map"] = {"predicate": "missing"}
+    registry_path.write_text(
+        json.dumps({"version": "1", "models": [base_entry]}), encoding="utf-8"
+    )
+    with pytest.raises(ModelValidationError, match="unknown nodes"):
+        BayesianModelRegistry(registry_path)
 
 
 def test_tool_returns_empty_result_when_no_model_matches(tmp_path):
@@ -167,9 +228,5 @@ def test_registry_rejects_priority_and_missing_models(tmp_path):
     data = json.loads(registry_path.read_text(encoding="utf-8"))
     data["models"][0]["priority"] = 0
     registry_path.write_text(json.dumps(data), encoding="utf-8")
-    registry = BayesianModelRegistry(registry_path)
-
     with pytest.raises(ModelValidationError, match="model file does not exist"):
-        BayesianEvidenceTool(registry).evaluate(
-            [], [EvidenceClaim("C", "甲", "violence")], [_assessment("C", 0.7)]
-        )
+        BayesianModelRegistry(registry_path)

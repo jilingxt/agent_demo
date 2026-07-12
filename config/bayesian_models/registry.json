@@ -41,7 +41,7 @@
     {
       "model_id": "property_taking",
       "path": "property_taking_v1.json",
-      "domains": ["property_rights", "theft"],
+      "domains": ["theft", "possession_transfer"],
       "trigger_predicates": [
         "taking_property",
         "prior_possession",

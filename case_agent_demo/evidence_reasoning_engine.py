@@ -1,12 +1,17 @@
-"""Unified evidence assessment pipeline with optional case-specific Bayesian inference."""
+"""Unified evidence assessment pipeline with registry-driven Bayesian Tools."""
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field, replace
+from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
 from typing import Mapping, Sequence
 
-from case_agent_demo.bayesian_engine import BayesianInferenceEngine
+from case_agent_demo.bayesian_tool import (
+    BayesianEvidenceTool,
+    BayesianModelRegistry,
+    BayesianToolResult,
+)
+from case_agent_demo.domain_affinity import CaseDomainRouter
 from case_agent_demo.evidence_reasoning import (
     AssertionNormalizer,
     ClaimBuilderV2,
@@ -21,7 +26,6 @@ from case_agent_demo.models import (
 )
 
 
-_MODEL_DIR = Path(__file__).resolve().parents[1] / "config" / "bayesian_models"
 _SUBJECTIVE_MODEL_VERSION = "subjective-evidence-v1"
 _STATUS_LABELS = {
     "unassessed": "低可信或被冲突削弱",
@@ -31,21 +35,6 @@ _STATUS_LABELS = {
     "authority_contested": "权威意见存在争议",
     "opposing_dominant": "低可信或被冲突削弱",
     "insufficient": "明显存疑，需补强",
-}
-_BAYESIAN_NODE_BY_PREDICATE = {
-    "presence": "actor_present",
-    "actor_present": "actor_present",
-    "physical_contact": "physical_contact",
-    "violence": "violent_action",
-    "violent_action": "violent_action",
-    "injury_exists": "injury_exists",
-    "injury_grade": "injury_grade",
-    "injury_consequence": "injury_grade",
-    "mechanism_compatible": "mechanism_consistency",
-    "mechanism_consistency": "mechanism_consistency",
-    "temporal_proximity": "temporal_consistency",
-    "temporal_consistency": "temporal_consistency",
-    "alternative_cause": "alternative_cause",
 }
 
 
@@ -60,19 +49,27 @@ class EvidenceReasoningResult:
 
 
 class EvidenceReasoningEngine:
-    """Run generic evidence fusion and an explicitly routed Bayesian template."""
+    """Run evidence fusion and all matching equal-priority Bayesian Tools."""
 
     def __init__(
         self,
         normalizer: AssertionNormalizer | None = None,
         claim_builder: ClaimBuilderV2 | None = None,
         subjective_engine: SubjectiveEvidenceEngine | None = None,
+        bayesian_tool: BayesianEvidenceTool | None = None,
+        domain_router: CaseDomainRouter | None = None,
         model_dir: str | Path | None = None,
     ):
         self.normalizer = normalizer or AssertionNormalizer()
         self.claim_builder = claim_builder or ClaimBuilderV2(self.normalizer)
         self.subjective_engine = subjective_engine or SubjectiveEvidenceEngine()
-        self.model_dir = Path(model_dir) if model_dir is not None else _MODEL_DIR
+        registry = (
+            BayesianModelRegistry(Path(model_dir) / "registry.json")
+            if model_dir is not None
+            else None
+        )
+        self.bayesian_tool = bayesian_tool or BayesianEvidenceTool(registry)
+        self.domain_router = domain_router or CaseDomainRouter()
 
     def evaluate(
         self,
@@ -87,8 +84,9 @@ class EvidenceReasoningEngine:
         assessments: list[ClaimAssessment] = []
         scored_claims: list[EvidenceClaim] = []
         for claim in claims:
+            assertion_ids = set(claim.assertion_ids)
             claim_assertions = [
-                assertion for assertion in assertions if assertion.assertion_id in set(claim.assertion_ids)
+                assertion for assertion in assertions if assertion.assertion_id in assertion_ids
             ]
             assessment = self.subjective_engine.evaluate(claim, claim_assertions)
             opinion = assessment.opinion
@@ -109,16 +107,21 @@ class EvidenceReasoningEngine:
                 )
             )
 
-        bayesian_result = self._infer_bayesian(case_type, scored_claims, assessments)
-        model_versions = {"subjective": _SUBJECTIVE_MODEL_VERSION}
+        case_domains = [
+            affinity.domain_id
+            for affinity in self.domain_router.infer_domains(case_type, evidence_graph)
+        ]
+        tool_result = self.bayesian_tool.evaluate(case_domains, scored_claims, assessments)
+        bayesian_result = _tool_result_to_dict(tool_result)
+        model_versions: dict[str, object] = {"subjective": _SUBJECTIVE_MODEL_VERSION}
         if bayesian_result is not None:
-            model_versions["bayesian"] = (
-                f"{bayesian_result['model_id']}:{bayesian_result['version']}"
-            )
-            scored_claims, assessments = _append_causation_assessment(
+            model_versions["bayesian"] = [
+                f"{run.model_id}:{run.version}" for run in tool_result.runs
+            ]
+            scored_claims, assessments = _append_derived_assessments(
                 scored_claims,
                 assessments,
-                bayesian_result,
+                tool_result,
             )
 
         return EvidenceReasoningResult(
@@ -129,112 +132,99 @@ class EvidenceReasoningEngine:
             reasoning_trace={
                 "assertion_count": len(assertions),
                 "claim_count": len(scored_claims),
-                "bayesian_template": model_versions.get("bayesian", ""),
+                "case_domains": case_domains,
+                "bayesian_models": model_versions.get("bayesian", []),
             },
             model_versions=model_versions,
         )
 
-    def _infer_bayesian(
-        self,
-        case_type: str,
-        claims: list[EvidenceClaim],
-        assessments: list[ClaimAssessment],
-    ) -> dict | None:
-        model_path = self._model_path_for(case_type)
-        if model_path is None:
-            return None
 
-        assessment_by_claim = {item.claim_id: item for item in assessments}
-        soft_evidence: dict[str, float] = {}
-        soft_evidence_sources: dict[str, list[str]] = {}
-        for claim in claims:
-            node_id = _BAYESIAN_NODE_BY_PREDICATE.get(claim.behavior_type)
-            assessment = assessment_by_claim.get(claim.claim_id)
-            if node_id is None or assessment is None or assessment.opinion is None:
-                continue
-            projected_support = assessment.opinion.support + 0.5 * assessment.opinion.uncertainty
-            current = soft_evidence.get(node_id)
-            if current is None or projected_support > current:
-                soft_evidence[node_id] = projected_support
-                soft_evidence_sources[node_id] = [claim.claim_id]
-            elif projected_support == current:
-                soft_evidence_sources.setdefault(node_id, []).append(claim.claim_id)
-
-        result = BayesianInferenceEngine(model_path).infer(soft_evidence)
-        result["soft_evidence"] = soft_evidence
-        result["soft_evidence_sources"] = soft_evidence_sources
-        return result
-
-    def _model_path_for(self, case_type: str) -> Path | None:
-        normalized = case_type.strip().lower().replace("-", "_")
-        if "故意伤害" in case_type or "intentional injury" in normalized or "intentional_injury" in normalized:
-            return self.model_dir / "intentional_injury_v1.json"
-        return None
-
-
-def _append_causation_assessment(
+def _append_derived_assessments(
     claims: list[EvidenceClaim],
     assessments: list[ClaimAssessment],
-    bayesian_result: dict,
+    tool_result: BayesianToolResult,
 ) -> tuple[list[EvidenceClaim], list[ClaimAssessment]]:
-    posterior = bayesian_result.get("node_values", {}).get("causation")
-    if posterior is None:
-        return claims, assessments
+    by_id = {claim.claim_id: claim for claim in claims}
+    derived_claims: list[EvidenceClaim] = []
+    derived_assessments: list[ClaimAssessment] = []
+    for run in tool_result.runs:
+        source_claims = [by_id[claim_id] for claim_id in run.input_claim_ids if claim_id in by_id]
+        actor = next((claim.subject for claim in source_claims if claim.subject), "")
+        target = next(
+            (
+                claim.target_person or claim.object
+                for claim in source_claims
+                if claim.target_person or claim.object
+            ),
+            "",
+        )
+        event_id = next((claim.event_id for claim in source_claims if claim.event_id), "")
+        model_version = f"{run.model_id}:{run.version}"
+        for node_id, value in run.derived_values.items():
+            claim_id = (
+                f"CL-{run.model_id}-{node_id}-{actor or 'unknown'}-"
+                f"{target or 'unknown'}-{event_id or 'case'}"
+            )
+            posterior = round(float(value), 4)
+            derived_claims.append(
+                EvidenceClaim(
+                    claim_id=claim_id,
+                    subject=actor,
+                    behavior_type=node_id,
+                    target_person=target,
+                    event_id=event_id,
+                    confidence_profile=ConfidenceProfile(
+                        final_score=posterior,
+                        label="贝叶斯事实派生结果（专家先验，未经历史数据校准）",
+                        reasons=["该结果只表达事实要素关系，不是违法犯罪或处罚结论。"],
+                    ),
+                    metadata={
+                        "derived_by": model_version,
+                        "input_claim_ids": run.input_claim_ids,
+                    },
+                )
+            )
+            derived_assessments.append(
+                ClaimAssessment(
+                    claim_id=claim_id,
+                    status="bayesian_derived",
+                    support_index=posterior,
+                    bayesian_posterior=posterior,
+                    bayesian_model_version=model_version,
+                    reasons=[
+                        "派生结果由版本化、同级的贝叶斯事实模型生成。",
+                        "参数为未经历史数据校准的专家先验，不作为事实概率或最终法律结论。",
+                    ],
+                )
+            )
+    return [*claims, *derived_claims], [*assessments, *derived_assessments]
 
-    action_claim = next(
-        (claim for claim in claims if claim.behavior_type in {"violence", "violent_action"}),
-        None,
-    )
-    injury_claim = next(
-        (
-            claim
-            for claim in claims
-            if claim.behavior_type in {"injury_exists", "injury_grade", "injury_consequence"}
-        ),
-        None,
-    )
-    actor = action_claim.subject if action_claim is not None else ""
-    target = (
-        (action_claim.target_person or action_claim.object)
-        if action_claim is not None
-        else ""
-    ) or (
-        (injury_claim.target_person or injury_claim.subject or injury_claim.object)
-        if injury_claim is not None
-        else ""
-    )
-    event_id = (
-        action_claim.event_id if action_claim is not None else ""
-    ) or (
-        injury_claim.event_id if injury_claim is not None else ""
-    )
-    claim_id = f"CL-causation-{actor or 'unknown'}-{target or 'unknown'}-{event_id or 'case'}"
-    model_version = f"{bayesian_result['model_id']}:{bayesian_result['version']}"
-    derived_claim = EvidenceClaim(
-        claim_id=claim_id,
-        subject=actor,
-        behavior_type="causation",
-        target_person=target,
-        event_id=event_id,
-        confidence_profile=ConfidenceProfile(
-            final_score=round(float(posterior), 4),
-            label="贝叶斯派生结果（专家先验，未经历史数据校准）",
-            reasons=["由跨 Claim 因果模板计算，不反向证明行为人身份或暴力行为。"],
-        ),
-        metadata={"derived_by": model_version},
-    )
-    derived_assessment = ClaimAssessment(
-        claim_id=claim_id,
-        status="bayesian_derived",
-        support_index=round(float(posterior), 4),
-        bayesian_posterior=round(float(posterior), 4),
-        bayesian_model_version=model_version,
-        reasons=[
-            "因果结果由版本化贝叶斯模板派生。",
-            "参数为未经历史数据校准的专家先验，不作为事实概率或最终法律结论。",
-        ],
-    )
-    return [*claims, derived_claim], [*assessments, derived_assessment]
+
+def _tool_result_to_dict(tool_result: BayesianToolResult) -> dict | None:
+    if not tool_result.runs:
+        return None
+    node_values: dict[str, float] = {}
+    soft_evidence: dict[str, float] = {}
+    soft_evidence_sources: dict[str, list[str]] = {}
+    for run in tool_result.runs:
+        node_values.update(run.derived_values)
+        soft_evidence.update(run.soft_evidence)
+        for node_id, claim_ids in run.soft_evidence_sources.items():
+            soft_evidence_sources.setdefault(node_id, []).extend(claim_ids)
+    first = tool_result.runs[0]
+    return {
+        "selected_model_ids": tool_result.selected_model_ids,
+        "skipped_model_ids": tool_result.skipped_model_ids,
+        "model_id": first.model_id if len(tool_result.runs) == 1 else "multi_model",
+        "version": first.version if len(tool_result.runs) == 1 else "registry-v1",
+        "calibration_status": first.calibration_status,
+        "parameter_hash": first.parameter_hash,
+        "node_values": node_values,
+        "soft_evidence": soft_evidence,
+        "soft_evidence_sources": soft_evidence_sources,
+        "runs": [asdict(run) for run in tool_result.runs],
+    }
+
 
 def _apply_authority_verifications(
     assertions: list[EvidenceAssertion],
@@ -244,13 +234,19 @@ def _apply_authority_verifications(
         return assertions
 
     if isinstance(verifications, Mapping):
-        by_key = {str(key): value for key, value in verifications.items() if isinstance(value, Mapping)}
+        by_key = {
+            str(key): value
+            for key, value in verifications.items()
+            if isinstance(value, Mapping)
+        }
     else:
         by_key = {}
         for value in verifications:
             if not isinstance(value, Mapping):
                 continue
-            key = value.get("assertion_id") or value.get("node_id") or value.get("source_material_id")
+            key = value.get("assertion_id") or value.get("node_id") or value.get(
+                "source_material_id"
+            )
             if key:
                 by_key[str(key)] = value
 

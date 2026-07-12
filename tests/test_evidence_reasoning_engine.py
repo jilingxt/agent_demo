@@ -43,13 +43,13 @@ def _verified_forensic_authority():
     }
 
 
-def test_generic_case_keeps_subjective_reasoning_without_bayesian_template():
+def test_property_damage_uses_general_conduct_result_template():
     graph = EvidenceGraph(nodes=[_node("N-DAMAGE", predicate="property_damage")])
 
     result = EvidenceReasoningEngine().evaluate("故意毁坏财物", graph)
 
     assert result.claim_assessments
-    assert result.bayesian_result is None
+    assert result.bayesian_result["selected_model_ids"] == ["conduct_result"]
     assert result.model_versions["subjective"] == "subjective-evidence-v1"
 
 
@@ -75,11 +75,11 @@ def test_intentional_injury_combines_subjective_authority_and_bayesian_layers():
     assert assessments[claims["injury_grade"].claim_id].status == "authority_anchored"
     assert result.bayesian_result["node_values"]["causation"] > 0.5
     assert assessments[claims["violence"].claim_id].status == "contested"
-    assert result.model_versions["bayesian"] == "intentional_injury:1"
+    assert result.model_versions["bayesian"] == ["conduct_result:1"]
     causation = assessments[claims["causation"].claim_id]
     assert causation.status == "bayesian_derived"
     assert causation.bayesian_posterior == round(result.bayesian_result["node_values"]["causation"], 4)
-    assert result.bayesian_result["soft_evidence_sources"]["violent_action"]
+    assert result.bayesian_result["soft_evidence_sources"]["conduct"]
 
 
 def test_reasoning_report_marks_contested_claims_in_place():

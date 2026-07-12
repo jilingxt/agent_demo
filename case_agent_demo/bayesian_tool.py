@@ -38,12 +38,15 @@ class BayesianModelRun:
     parameter_hash: str
     input_claim_ids: list[str]
     soft_evidence: dict[str, float]
+    soft_evidence_sources: dict[str, list[str]]
+    node_values: dict[str, float]
     derived_values: dict[str, float]
 
 
 @dataclass(frozen=True)
 class BayesianToolResult:
     selected_model_ids: list[str] = field(default_factory=list)
+    skipped_model_ids: list[str] = field(default_factory=list)
     runs: list[BayesianModelRun] = field(default_factory=list)
 
 
@@ -82,6 +85,7 @@ class BayesianModelRegistry:
                 raise ModelValidationError("all Bayesian models must have equal priority 0")
             if model.model_id in seen:
                 raise ModelValidationError(f"duplicate Bayesian registry model: {model.model_id}")
+            _validate_registered_model(model)
             seen.add(model.model_id)
             models.append(model)
         return str(data.get("version", "1")), models
@@ -99,12 +103,17 @@ class BayesianEvidenceTool:
     ) -> BayesianToolResult:
         selected = self.registry.select(case_domains, claims)
         if not selected:
-            return BayesianToolResult()
+            return BayesianToolResult(
+                skipped_model_ids=[model.model_id for model in self.registry.models]
+            )
 
         assessments = {item.claim_id: item for item in claim_assessments}
         runs = [self._run(model, claims, assessments) for model in selected]
         return BayesianToolResult(
             selected_model_ids=[model.model_id for model in selected],
+            skipped_model_ids=[
+                model.model_id for model in self.registry.models if model not in selected
+            ],
             runs=runs,
         )
 
@@ -118,16 +127,19 @@ class BayesianEvidenceTool:
             raise ModelValidationError(f"model file does not exist: {model.path}")
 
         soft_evidence: dict[str, float] = {}
-        input_claim_ids: list[str] = []
+        soft_evidence_sources: dict[str, list[str]] = {}
         for claim in claims:
             input_node = model.input_map.get(claim.behavior_type)
             assessment = assessments.get(claim.claim_id)
             if input_node is None or assessment is None:
                 continue
             value = _assessment_support(assessment)
-            if input_node not in soft_evidence or value > soft_evidence[input_node]:
+            current = soft_evidence.get(input_node)
+            if current is None or value > current:
                 soft_evidence[input_node] = value
-            input_claim_ids.append(claim.claim_id)
+                soft_evidence_sources[input_node] = [claim.claim_id]
+            elif value == current:
+                soft_evidence_sources.setdefault(input_node, []).append(claim.claim_id)
 
         result = BayesianInferenceEngine(model.path).infer(soft_evidence)
         return BayesianModelRun(
@@ -135,8 +147,16 @@ class BayesianEvidenceTool:
             version=result["version"],
             calibration_status=result["calibration_status"],
             parameter_hash=result["parameter_hash"],
-            input_claim_ids=list(dict.fromkeys(input_claim_ids)),
+            input_claim_ids=list(
+                dict.fromkeys(
+                    claim_id
+                    for claim_ids in soft_evidence_sources.values()
+                    for claim_id in claim_ids
+                )
+            ),
             soft_evidence=soft_evidence,
+            soft_evidence_sources=soft_evidence_sources,
+            node_values=dict(result["node_values"]),
             derived_values={
                 node_id: result["node_values"][node_id]
                 for node_id in model.derived_nodes
@@ -164,6 +184,9 @@ def _registered_model(item: object, base_dir: Path) -> RegisteredBayesianModel:
     for field_name in ("domains", "trigger_predicates", "derived_nodes"):
         if not isinstance(item[field_name], list):
             raise ModelValidationError(f"Bayesian registry {field_name} must be a list")
+    priority = item.get("priority", 0)
+    if isinstance(priority, bool) or not isinstance(priority, int):
+        raise ModelValidationError("Bayesian registry priority must be integer 0")
     return RegisteredBayesianModel(
         model_id=str(item["model_id"]),
         path=(base_dir / str(item["path"])).resolve(),
@@ -171,8 +194,29 @@ def _registered_model(item: object, base_dir: Path) -> RegisteredBayesianModel:
         trigger_predicates=tuple(str(value) for value in item["trigger_predicates"]),
         input_map={str(key): str(value) for key, value in item["input_map"].items()},
         derived_nodes=tuple(str(value) for value in item["derived_nodes"]),
-        priority=int(item.get("priority", 0)),
+        priority=priority,
     )
+
+
+def _validate_registered_model(model: RegisteredBayesianModel) -> None:
+    if not model.path.is_file():
+        raise ModelValidationError(f"model file does not exist: {model.path}")
+    result = BayesianInferenceEngine(model.path).infer({})
+    if result["model_id"] != model.model_id:
+        raise ModelValidationError(
+            f"registry model_id {model.model_id} does not match model file {result['model_id']}"
+        )
+    node_ids = set(result["node_values"])
+    missing_inputs = set(model.input_map.values()) - node_ids
+    missing_outputs = set(model.derived_nodes) - node_ids
+    if missing_inputs:
+        raise ModelValidationError(
+            f"registry input_map references unknown nodes: {sorted(missing_inputs)}"
+        )
+    if missing_outputs:
+        raise ModelValidationError(
+            f"registry derived_nodes references unknown nodes: {sorted(missing_outputs)}"
+        )
 
 
 def _assessment_support(assessment: ClaimAssessment) -> float:
