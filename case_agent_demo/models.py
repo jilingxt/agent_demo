@@ -309,6 +309,46 @@ def infer_polarity(text: str) -> str:
 
 def infer_claim_type(behavior: str, obj: str = "") -> str:
     text = f"{behavior} {obj}"
+    if any(word in text for word in ("其他合理原因", "其他合理致伤原因", "其他致伤原因", "另有原因", "自行摔倒")):
+        return "alternative_cause"
+    if any(word in text for word in ("机制吻合", "作用机制吻合", "形成机制一致")):
+        return "mechanism_compatible"
+    if any(word in text for word in ("时间接近", "立即出现", "紧接着出现")):
+        return "temporal_proximity"
+    if any(word in text for word in ("借用", "误拿", "受托保管", "替代性解释")):
+        return "alternative_explanation"
+    if any(word in text for word in ("转移到", "转移占有", "交付后控制", "取得控制")):
+        return "possession_transfer"
+    if any(word in text for word in ("原由", "原先占有", "保管并占有", "原持有人")):
+        return "prior_possession"
+    if any(word in text for word in ("财物去向", "已被追回", "赃物", "交易记录")):
+        return "property_trace"
+    if any(word in text for word in ("持续起哄", "多人参与", "聚众", "反复实施")):
+        return "persistence_or_group"
+    if any(word in text for word in ("停止营业", "通行受到影响", "交通中断", "无法办公")):
+        return "operational_impact"
+    if any(word in text for word in ("公共场所", "车站大厅", "医院大厅", "商场内")):
+        return "public_context"
+    if any(word in text for word in ("扰乱秩序", "冲闯", "起哄滋事", "妨碍场所秩序")):
+        return "public_order_conduct"
+    if any(word in text for word in ("不特定多数人", "暴露范围", "公共区域受威胁")):
+        return "exposure"
+    if any(word in text for word in ("未采取控制措施", "失去控制", "泄漏且未", "控制失效")):
+        return "control_failure"
+    if any(word in text for word in ("纵火", "引爆", "投放危险物质", "危险驾驶")):
+        return "hazardous_conduct"
+    if any(word in text for word in ("爆炸物", "危险物质", "易燃易爆", "危险状态")):
+        return "dangerous_object_or_condition"
+    if any(word in text for word in ("负有安全管理义务", "法定义务", "依法负有", "职责要求")):
+        return "duty_exists"
+    if any(word in text for word in ("特定从业资格", "具备资格", "特定身份", "任职资格")):
+        return "qualified_actor"
+    if any(word in text for word in ("未经许可", "无证经营", "超越授权", "许可缺失")):
+        return "authorization_absent"
+    if any(word in text for word in ("擅自违规", "违反规定实施", "违规经营", "禁止实施")):
+        return "prohibited_conduct"
+    if any(word in text for word in ("损坏结果", "无法使用", "功能丧失", "维修损失")):
+        return "damage_exists"
     if any(word in text for word in ("打架", "动手", "殴打", "伤害", "抱摔", "推搡", "掐脖子", "拉拽")):
         return "violence"
     if any(word in text for word in ("轻伤", "重伤", "骨折", "伤情", "鉴定意见", "损伤")):
