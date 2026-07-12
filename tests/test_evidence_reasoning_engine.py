@@ -53,7 +53,7 @@ def test_property_damage_uses_general_conduct_result_template():
     assert result.model_versions["subjective"] == "subjective-evidence-v1"
 
 
-def test_intentional_injury_combines_subjective_authority_and_bayesian_layers():
+def test_conduct_result_scenario_combines_subjective_authority_and_bayesian_layers():
     graph = EvidenceGraph(
         nodes=[
             _node("N-PRESENT", predicate="presence"),

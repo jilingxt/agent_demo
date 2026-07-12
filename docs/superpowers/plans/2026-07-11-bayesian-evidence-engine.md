@@ -72,7 +72,7 @@
 
 **Files:**
 - Create: `case_agent_demo/bayesian_engine.py`
-- Create: `config/bayesian_models/intentional_injury_v1.json`
+- Superseded: use the equal-priority `config/bayesian_models/conduct_result_v1.json` model through the registry-driven Tool.
 - Test: `tests/test_bayesian_engine.py`
 
 **Interfaces:**
