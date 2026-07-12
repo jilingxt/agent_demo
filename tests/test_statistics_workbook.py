@@ -10,6 +10,7 @@ GENERATOR = ROOT / "scripts" / "generate_bayesian_statistics_workbook.py"
 WORKBOOK = ROOT / "docs" / "statistics" / "bayesian_parameter_collection_template.xlsx"
 SHEETS = [
     "填写说明",
+    "参数需求清单",
     "原子事实核验",
     "来源观测统计",
     "抽取准确率",
@@ -20,6 +21,7 @@ SHEETS = [
     "枚举值",
 ]
 REQUIRED_HEADERS = {
+    "参数需求清单": {"参数类别", "参数名称", "是否需真实数据", "所需统计量", "法律边界"},
     "原子事实核验": {"样本ID", "模型输出标签", "独立核验标签", "统计分类"},
     "来源观测统计": {"TP", "FP", "FN", "TN", "未知数", "后验均值"},
     "抽取准确率": {"TP", "FP", "FN", "TN", "精确率", "召回率"},
@@ -75,7 +77,7 @@ def test_generator_creates_the_governed_workbook_contract(tmp_path):
     ]
     assert validations
     assert all(validation.type == "list" for validation in validations)
-    assert {"=LabelValues", "=ApprovalValues", "=PrivacyValues"} <= {
+    assert {"=LabelValues", "=ApprovalValues", "=PrivacyValues", "=YesNoDataValues"} <= {
         validation.formula1 for validation in validations
     }
 
