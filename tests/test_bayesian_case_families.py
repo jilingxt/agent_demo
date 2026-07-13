@@ -19,6 +19,7 @@ def test_registry_contains_equal_priority_peer_families():
         "public_order",
         "public_safety",
         "status_duty",
+        "deception_disposition",
     ]
     assert {model.priority for model in registry.models} == {0}
     assert all("intentional_injury" not in model.model_id for model in registry.models)
@@ -123,12 +124,13 @@ def test_public_order_public_safety_and_status_models_move_with_evidence():
         assert engine.infer(evidence)["node_values"][output] > engine.infer({})["node_values"][output]
 
 
-def test_legal_element_taxonomy_covers_both_laws_and_separates_normative_rules():
+def test_legal_element_taxonomy_covers_indexed_laws_and_separates_normative_rules():
     data = json.loads(ELEMENTS_PATH.read_text(encoding="utf-8"))
 
     assert set(data["source_laws"]) == {
         "中华人民共和国刑法（2023年修正）",
         "中华人民共和国治安管理处罚法（2025年修订）",
+        "中华人民共和国刑事诉讼法（2018年修正）",
     }
     assert {item["family_id"] for item in data["case_families"]} == {
         "conduct_result",
@@ -136,6 +138,7 @@ def test_legal_element_taxonomy_covers_both_laws_and_separates_normative_rules()
         "public_order",
         "public_safety",
         "status_duty",
+        "deception_disposition",
     }
     assert {
         "age_threshold",

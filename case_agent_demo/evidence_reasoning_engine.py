@@ -116,7 +116,7 @@ class EvidenceReasoningEngine:
         tool_result = self.bayesian_tool.evaluate(case_domains, scored_claims, assessments)
         bayesian_result = _tool_result_to_dict(tool_result)
         model_versions: dict[str, object] = {"subjective": _SUBJECTIVE_MODEL_VERSION}
-        if bayesian_result is not None:
+        if tool_result.runs:
             bayesian_versions = [
                 f"{run.model_id}:{run.version}" for run in tool_result.runs
             ]
@@ -200,7 +200,7 @@ def _append_derived_assessments(
 
 
 def _tool_result_to_dict(tool_result: BayesianToolResult) -> dict | None:
-    if not tool_result.runs:
+    if not tool_result.runs and not tool_result.abstentions:
         return None
     node_values: dict[str, float] = {}
     soft_evidence: dict[str, float] = {}
@@ -221,7 +221,7 @@ def _tool_result_to_dict(tool_result: BayesianToolResult) -> dict | None:
         for node_id, claim_ids in run.soft_evidence_sources.items():
             key = f"{namespace}:{node_id}" if multi_run else node_id
             soft_evidence_sources.setdefault(key, []).extend(claim_ids)
-    first = tool_result.runs[0]
+    first = tool_result.runs[0] if tool_result.runs else None
     calibration_statuses = {
         f"{run.model_id}:{run.group_key}": run.calibration_status for run in tool_result.runs
     }
@@ -234,11 +234,23 @@ def _tool_result_to_dict(tool_result: BayesianToolResult) -> dict | None:
     return {
         "selected_model_ids": tool_result.selected_model_ids,
         "skipped_model_ids": tool_result.skipped_model_ids,
-        "model_id": first.model_id if len(tool_result.runs) == 1 else "multi_model",
-        "version": first.version if len(tool_result.runs) == 1 else "registry-v1",
-        "calibration_status": first.calibration_status if not multi_run else "multi_model",
+        "model_id": (
+            first.model_id
+            if first is not None and len(tool_result.runs) == 1
+            else "multi_model" if tool_result.runs else "abstained"
+        ),
+        "version": first.version if first is not None and len(tool_result.runs) == 1 else "registry-v1",
+        "calibration_status": (
+            first.calibration_status
+            if first is not None and not multi_run
+            else "multi_model" if tool_result.runs else "not_run"
+        ),
         "calibration_statuses": calibration_statuses,
-        "parameter_hash": first.parameter_hash if not multi_run else combined_hash,
+        "parameter_hash": (
+            first.parameter_hash
+            if first is not None and not multi_run
+            else combined_hash if tool_result.runs else ""
+        ),
         "parameter_hashes": parameter_hashes,
         "node_values": node_values,
         "model_node_values": model_node_values,
@@ -246,6 +258,7 @@ def _tool_result_to_dict(tool_result: BayesianToolResult) -> dict | None:
         "model_soft_evidence": model_soft_evidence,
         "soft_evidence_sources": soft_evidence_sources,
         "runs": [asdict(run) for run in tool_result.runs],
+        "abstentions": [asdict(item) for item in tool_result.abstentions],
     }
 
 

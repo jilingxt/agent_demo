@@ -1,0 +1,18 @@
+{
+  "case_id": "CASE-SAFETY-001",
+  "case_type": "危害公共安全类案件",
+  "materials": [
+    {"material_id": "SAFETY-S-ACTOR", "material_type": "statement", "path": "statements/行为人笔录.txt"},
+    {"material_id": "SAFETY-S-WITNESS", "material_type": "statement", "path": "statements/证人证言.txt"},
+    {"material_id": "SAFETY-R-VIDEO", "material_type": "report_image", "path": "reports/监控研判报告.txt"},
+    {"material_id": "SAFETY-R-LAB", "material_type": "report_image", "path": "reports/危险物质检验记录.txt"}
+  ],
+  "expected": {
+    "bayesian_models": ["public_safety"],
+    "bayesian_run_count": 1,
+    "derived_min": {"public_danger": 0.5},
+    "primary_claim": {"subject": "孙伟", "predicate": "hazardous_conduct", "target": "危险物质", "min_sources": 3, "status": "supported"},
+    "must_include_articles": ["第一百一十四条", "第三十六条"],
+    "must_exclude_articles": ["第一百一十五条", "第二十九条", "第三十七条", "第一百二十七条"]
+  }
+}

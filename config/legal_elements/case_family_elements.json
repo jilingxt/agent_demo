@@ -1,9 +1,10 @@
 {
   "version": "1",
-  "scope_note": "本表只抽象可由证据评价的事实要素；罪名、违法成立、处罚选择及法条适用仍由确定性规则和人工法律审查完成。",
+  "scope_note": "本表登记可复用的事实关系组件，不是案件类型白名单。组件只评价可由证据支持或反对的事实关系；罪名、违法成立、处罚选择及法条适用仍由确定性规则和人工法律审查完成。未匹配组件的事实继续进入主观证据评估，并由贝叶斯工具显式安全弃权。",
   "source_laws": [
     "中华人民共和国刑法（2023年修正）",
-    "中华人民共和国治安管理处罚法（2025年修订）"
+    "中华人民共和国治安管理处罚法（2025年修订）",
+    "中华人民共和国刑事诉讼法（2018年修正）"
   ],
   "universal_factual_elements": [
     "actor_identity",
@@ -53,6 +54,11 @@
       "family_id": "status_duty",
       "name": "特定身份与义务",
       "factual_elements": ["qualification_record_present", "duty_record_present", "conduct_recorded", "authorization_record_absent", "status_duty_facts_supported"]
+    },
+    {
+      "family_id": "deception_disposition",
+      "name": "陈述、认识与财产处分关系",
+      "factual_elements": ["deceptive_representation", "mistaken_belief", "property_disposition", "property_loss", "alternative_explanation", "disposition_link"]
     }
   ]
 }

@@ -275,6 +275,21 @@ class AssertionNormalizer:
         for node in graph.nodes:
             if node.node_type != "fact" or node.status != "active":
                 continue
+            structured = node.metadata.get("assertions")
+            if isinstance(structured, list) and structured:
+                for index, item in enumerate(structured, start=1):
+                    if not isinstance(item, dict):
+                        continue
+                    predicate = str(item.get("predicate") or "general")
+                    assertions.append(
+                        self.normalize_node(
+                            node,
+                            predicate,
+                            overrides=item,
+                            assertion_suffix=str(index),
+                        )
+                    )
+                continue
             explicit = node.metadata.get("predicate")
             predicates = [str(explicit)] if explicit else infer_claim_types(
                 node.behavior or node.summary,
@@ -283,9 +298,17 @@ class AssertionNormalizer:
             assertions.extend(self.normalize_node(node, predicate) for predicate in predicates)
         return assertions
 
-    def normalize_node(self, node, predicate: str | None = None) -> EvidenceAssertion:
+    def normalize_node(
+        self,
+        node,
+        predicate: str | None = None,
+        *,
+        overrides: dict | None = None,
+        assertion_suffix: str = "",
+    ) -> EvidenceAssertion:
         metadata = {
             **node.metadata,
+            **(overrides or {}),
             "extraction_quality": node.metadata.get("extraction_quality", node.confidence),
             "source_type": node.source_type,
             "source_material_id": node.source_material_id,
@@ -301,8 +324,18 @@ class AssertionNormalizer:
         stance = _normalize_stance(stance_value)
         target_person = metadata.get("target_person", metadata.get("target", ""))
         origin_evidence = metadata.get("origin_evidence", node.raw_ref or node.source_material_id)
+        assertion_role = _assertion_role(
+            metadata,
+            source_type=node.source_type,
+            stance=stance,
+            declarant=str(metadata.get("declarant", node.source_party)),
+            actor=str(actor),
+        )
+        assertion_id = f"AS-{node.node_id}-{predicate}"
+        if assertion_suffix:
+            assertion_id = f"{assertion_id}-{assertion_suffix}"
         return EvidenceAssertion(
-            assertion_id=f"AS-{node.node_id}-{predicate}",
+            assertion_id=assertion_id,
             node_id=node.node_id,
             declarant=metadata.get("declarant", node.source_party),
             actor=actor,
@@ -315,35 +348,106 @@ class AssertionNormalizer:
             source_group=metadata.get("source_group", node.source_material_id),
             origin_evidence=origin_evidence,
             metadata=metadata,
+            assertion_role=assertion_role,
+            time=str(metadata.get("time", node.time)),
+            location=str(metadata.get("location", node.location)),
+            evidence_category=str(metadata.get("evidence_category", node.source_type)),
+            declarant_role=str(metadata.get("declarant_role", "")),
         )
 
     def build_claims(self, assertions: list[EvidenceAssertion]) -> list[EvidenceClaim]:
         buckets: dict[tuple[str, str, str, str], EvidenceClaim] = {}
+        grouped: dict[tuple[str, str, str], list[EvidenceAssertion]] = {}
         for assertion in assertions:
-            target = assertion.target_person or assertion.object
-            key = (assertion.actor, assertion.predicate, target, assertion.event_id)
-            claim = buckets.get(key) or EvidenceClaim(
-                claim_id=_claim_id(key),
-                subject=assertion.actor,
-                behavior_type=assertion.predicate,
-                object=assertion.object,
-                target_person=assertion.target_person,
-                event_id=assertion.event_id,
-            )
-            claim = replace(
-                claim,
-                target_person=claim.target_person or assertion.target_person,
-                object=claim.object or assertion.object,
-                assertion_ids=[*claim.assertion_ids, assertion.assertion_id],
-            )
-            if assertion.stance == "affirm":
-                claim = replace(claim, supporting_node_ids=[*claim.supporting_node_ids, assertion.node_id])
-            elif assertion.stance == "deny":
-                claim = replace(claim, opposing_node_ids=[*claim.opposing_node_ids, assertion.node_id])
-            else:
-                claim = replace(claim, ambiguous_node_ids=[*claim.ambiguous_node_ids, assertion.node_id])
-            buckets[key] = claim
+            target = _claim_target(assertion)
+            grouped.setdefault((assertion.actor, assertion.predicate, target), []).append(assertion)
+
+        for base_key, group in grouped.items():
+            known_events = {
+                item.event_id
+                for item in group
+                if item.event_id and not _is_material_scope(item.event_id)
+            }
+            for assertion in group:
+                event_id = assertion.event_id
+                if (not event_id or _is_material_scope(event_id)) and len(known_events) == 1:
+                    event_id = next(iter(known_events))
+                key = (*base_key, event_id)
+                target = base_key[2]
+                claim = buckets.get(key) or EvidenceClaim(
+                    claim_id=_claim_id(key),
+                    subject=assertion.actor,
+                    behavior_type=assertion.predicate,
+                    object=assertion.object if not assertion.target_person else "",
+                    target_person=assertion.target_person,
+                    event_id=event_id,
+                )
+                claim = replace(
+                    claim,
+                    target_person=claim.target_person or assertion.target_person,
+                    object=claim.object or (assertion.object if not assertion.target_person else ""),
+                    time_bucket=claim.time_bucket or assertion.time,
+                    location=claim.location or assertion.location,
+                    assertion_ids=[*claim.assertion_ids, assertion.assertion_id],
+                    metadata={
+                        **claim.metadata,
+                        "assertion_roles": sorted(
+                            set(claim.metadata.get("assertion_roles", []))
+                            | {assertion.assertion_role}
+                        ),
+                        "allegation_assertion_ids": [
+                            *claim.metadata.get("allegation_assertion_ids", []),
+                            *(
+                                [assertion.assertion_id]
+                                if assertion.assertion_role == "allegation"
+                                and assertion.stance == "affirm"
+                                else []
+                            ),
+                        ],
+                    },
+                )
+                if assertion.stance == "affirm":
+                    claim = replace(claim, supporting_node_ids=[*claim.supporting_node_ids, assertion.node_id])
+                elif assertion.stance == "deny":
+                    claim = replace(claim, opposing_node_ids=[*claim.opposing_node_ids, assertion.node_id])
+                else:
+                    claim = replace(claim, ambiguous_node_ids=[*claim.ambiguous_node_ids, assertion.node_id])
+                buckets[key] = claim
         return list(buckets.values())
+
+
+def _is_material_scope(event_id: str) -> bool:
+    return event_id.startswith("MATERIAL-")
+
+
+def _claim_target(assertion: EvidenceAssertion) -> str:
+    if assertion.target_person:
+        return assertion.target_person.strip().casefold()
+    if assertion.predicate in {"physical_contact", "violence", "violent_action"}:
+        return assertion.object.strip().casefold()
+    if assertion.predicate in {
+        "presence",
+        "injury_exists",
+        "injury_grade",
+        "injury_consequence",
+        "mechanism_compatible",
+        "mechanism_consistency",
+        "temporal_proximity",
+        "temporal_consistency",
+        "alternative_cause",
+        "public_order_conduct",
+        "public_context",
+        "operational_impact",
+        "persistence_or_group",
+        "exposure",
+        "control_failure",
+        "conduct_recorded",
+        "duty_record_present",
+        "qualification_record_present",
+        "authorization_record_absent",
+    }:
+        return ""
+    return assertion.object.strip().casefold()
 
 
 class ClaimBuilderV2:
@@ -376,6 +480,41 @@ def _normalize_stance(stance: str) -> str:
     if stance in {"deny", "oppose"}:
         return "deny"
     return "ambiguous"
+
+
+def _assertion_role(
+    metadata: dict,
+    *,
+    source_type: str,
+    stance: str,
+    declarant: str,
+    actor: str,
+) -> str:
+    explicit = str(metadata.get("assertion_role", ""))
+    if explicit in {
+        "allegation",
+        "defense_response",
+        "statement_evidence",
+        "evidence_observation",
+        "context",
+    }:
+        return explicit
+    if source_type != "statement":
+        return "evidence_observation"
+    declarant_role = str(metadata.get("declarant_role", metadata.get("source_party", "")))
+    if declarant_role in {"reporting_person", "complainant", "victim", "affected_person"}:
+        return "allegation" if stance == "affirm" else "statement_evidence"
+    if declarant_role in {"witness", "alleged_actor", "statement_provider"}:
+        if declarant_role == "alleged_actor" and stance == "deny":
+            return "defense_response"
+        return "statement_evidence"
+    if stance == "deny":
+        return "defense_response"
+    if stance == "affirm" and declarant and actor and declarant != actor:
+        return "allegation"
+    if stance == "affirm":
+        return "allegation"
+    return "context"
 
 
 def _quality_value(value: object) -> float:
@@ -424,6 +563,8 @@ def _text_value(value: object) -> str:
 
 
 def _assertion_matches_claim(assertion: EvidenceAssertion, claim: EvidenceClaim) -> bool:
+    if assertion.assertion_id in claim.assertion_ids:
+        return True
     # Unscoped legacy assertions are passed directly by older callers as claim-local evidence.
     if _is_unscoped_legacy_assertion(assertion):
         return True
@@ -432,7 +573,11 @@ def _assertion_matches_claim(assertion: EvidenceAssertion, claim: EvidenceClaim)
         and assertion.predicate == claim.behavior_type
         and _normalized_target(assertion.target_person, assertion.object)
         == _normalized_target(claim.target_person, claim.object)
-        and (not claim.event_id or assertion.event_id == claim.event_id)
+        and (
+            not claim.event_id
+            or not assertion.event_id
+            or assertion.event_id == claim.event_id
+        )
     )
 
 

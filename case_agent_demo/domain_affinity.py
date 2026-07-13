@@ -7,7 +7,9 @@ from case_agent_demo.models import DomainAffinity, EvidenceGraph, LegalChunk, Le
 
 DEFAULT_LEGAL_DOMAINS = [
     LegalDomain("personal_rights", "人身权益", keywords=["伤害", "殴打", "人身", "损伤", "伤情"]),
-    LegalDomain("property_rights", "财产权益", keywords=["财物", "占有", "拿走", "盗窃", "损坏"]),
+    LegalDomain("property_rights", "财产权益", keywords=["财物", "占有", "拿走", "盗窃", "损坏", "转账", "损失"]),
+    LegalDomain("deception_disposition", "欺骗与财产处分", keywords=["虚构", "隐瞒真相", "欺骗", "错误认识", "转账", "财产处分", "损失"]),
+    LegalDomain("economic_transactions", "经济交易事实", keywords=["投资", "合同", "交易", "付款", "转账", "账户"]),
     LegalDomain("public_order", "公共秩序", keywords=["公共秩序", "扰乱", "起哄", "聚众", "场所秩序"]),
     LegalDomain("public_safety", "公共安全", keywords=["公共安全", "危险物质", "危险状态", "暴露", "失控"]),
     LegalDomain("social_management", "社会管理", keywords=["许可证", "资格", "义务", "无证", "未经许可"]),
@@ -30,6 +32,8 @@ DEFAULT_LEGAL_DOMAINS = [
 CASE_TYPE_DOMAIN_RULES = {
     "personal_rights": ("伤害", "殴打", "人身"),
     "property_rights": ("盗窃", "财物", "毁坏财物", "财产"),
+    "deception_disposition": ("虚构", "隐瞒真相", "欺骗", "错误认识", "转账"),
+    "economic_transactions": ("投资", "合同", "交易", "付款", "账户"),
     "public_order": ("扰乱公共秩序", "寻衅", "聚众", "场所秩序"),
     "public_safety": ("危害公共安全", "危险物质", "危险驾驶", "公共危险"),
     "social_management": ("社会管理", "无证", "未经许可", "违反管理"),

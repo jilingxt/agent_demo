@@ -70,9 +70,23 @@ class FinalConflictAgent:
         assessments = claim_assessments or []
         if assessments:
             claim_types = {claim.claim_id: claim.behavior_type for claim in evidence_graph.claims}
+            model_inputs, primary_inputs = _model_input_roles()
+            consumed_claim_ids = _consumed_or_covered_claim_ids(
+                evidence_graph,
+                bayesian_result,
+            )
             for assessment in assessments:
                 behavior_type = claim_types.get(assessment.claim_id, "general")
-                issue = _assessment_issue(counter, assessment, behavior_type)
+                issue = _assessment_issue(
+                    counter,
+                    assessment,
+                    behavior_type,
+                    report_insufficiency=(
+                        behavior_type not in model_inputs
+                        or behavior_type in primary_inputs
+                        or assessment.claim_id not in consumed_claim_ids
+                    ),
+                )
                 if issue is not None:
                     issues.append(issue)
                     counter += 1
@@ -82,6 +96,35 @@ class FinalConflictAgent:
         if bayesian_result and not any(
             assessment.status == "bayesian_derived" for assessment in assessments
         ):
+            for abstention in bayesian_result.get("abstentions", []):
+                if not isinstance(abstention, dict):
+                    continue
+                missing = "、".join(abstention.get("missing_inputs", []))
+                reason = str(abstention.get("reason", "inference_abstained"))
+                unmatched_component = reason == "no_matching_relation_component"
+                issues.append(
+                    ValidationIssue(
+                        issue_id=f"V-{counter}",
+                        issue_type="bayesian_inference_abstained",
+                        severity="low" if unmatched_component else "medium",
+                        target_claim_ids=[
+                            str(abstention.get("anchor_claim_id", ""))
+                        ] if abstention.get("anchor_claim_id") else [],
+                        reason=(
+                            f"事实关系模型 {abstention.get('model_id', '')} 未运行：{reason}"
+                            + (f"（缺少 {missing}）" if missing else "")
+                            + "。系统未使用模型先验补齐案件事实。"
+                        ),
+                        required_action=(
+                            "保留该事实的主观证据评估，不强行套用现有关系组件；"
+                            "仅在该关系具有稳定复用价值并完成专家建模、校准后扩展注册表。"
+                            if unmatched_component
+                            else "补充模型必需事实的独立证据，或保持该跨事实关系为未判断。"
+                        ),
+                        metadata=dict(abstention),
+                    )
+                )
+                counter += 1
             for node_id, value in _legacy_derived_values(bayesian_result).items():
                 if float(value) >= 0.5:
                     continue
@@ -182,6 +225,8 @@ def _assessment_issue(
     counter: int,
     assessment: ClaimAssessment,
     behavior_type: str,
+    *,
+    report_insufficiency: bool = True,
 ) -> ValidationIssue | None:
     if assessment.status == "bayesian_derived" and assessment.support_index < 0.5:
         issue_type = "causation_insufficient" if behavior_type == "causation" else "derived_fact_insufficient"
@@ -203,7 +248,7 @@ def _assessment_issue(
             behavior_type,
             "正向证据仍占优势或与反向证据相当，但存在实质争议。",
         )
-    if assessment.status in {"insufficient", "unassessed"}:
+    if assessment.status in {"insufficient", "unassessed"} and report_insufficiency:
         return _claim_issue(
             counter,
             "evidence_insufficiency",
@@ -231,6 +276,72 @@ def _assessment_issue(
             "权威意见存在同层级反证或有效性异议。",
         )
     return None
+
+
+def _model_input_roles() -> tuple[set[str], set[str]]:
+    registry = BayesianModelRegistry()
+    all_inputs: set[str] = set()
+    primary_inputs: set[str] = set()
+    for model in registry.models:
+        all_inputs.update(model.input_map)
+        primary_inputs.update(
+            predicate
+            for predicate, node_id in model.input_map.items()
+            if node_id in model.anchor_inputs
+        )
+    return all_inputs, primary_inputs
+
+
+def _consumed_or_covered_claim_ids(
+    evidence_graph: EvidenceGraph,
+    bayesian_result: dict | None,
+) -> set[str]:
+    if not bayesian_result:
+        return set()
+    consumed = {
+        str(claim_id)
+        for run in bayesian_result.get("runs", [])
+        if isinstance(run, dict)
+        for claim_id in run.get("input_claim_ids", [])
+    }
+    claims_by_id = {claim.claim_id: claim for claim in evidence_graph.claims}
+    registry = BayesianModelRegistry()
+    models = {model.model_id: model for model in registry.models}
+    for run in bayesian_result.get("runs", []):
+        if not isinstance(run, dict):
+            continue
+        model = models.get(str(run.get("model_id", "")))
+        if model is None:
+            continue
+        sources = run.get("soft_evidence_sources", {})
+        if not isinstance(sources, dict):
+            continue
+        for claim in evidence_graph.claims:
+            input_node = model.input_map.get(claim.behavior_type)
+            if input_node is None or input_node not in sources:
+                continue
+            source_claims = [
+                claims_by_id.get(str(claim_id))
+                for claim_id in sources.get(input_node, [])
+            ]
+            if any(
+                source is not None and _claim_scopes_overlap(claim, source)
+                for source in source_claims
+            ):
+                consumed.add(claim.claim_id)
+    return consumed
+
+
+def _claim_scopes_overlap(left, right) -> bool:
+    left_target = left.target_person or left.object
+    right_target = right.target_person or right.object
+    if left_target and right_target and left_target != right_target:
+        return False
+    left_event = "" if str(left.event_id).startswith("MATERIAL-") else left.event_id
+    right_event = "" if str(right.event_id).startswith("MATERIAL-") else right.event_id
+    if left_event and right_event and left_event != right_event:
+        return False
+    return True
 
 
 def issues_to_challenges(issues: list[ValidationIssue]) -> list[Challenge]:

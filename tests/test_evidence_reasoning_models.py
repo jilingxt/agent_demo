@@ -96,6 +96,31 @@ class AssertionNormalizerTests(unittest.TestCase):
 
         self.assertEqual(assertion.predicate, "violence")
 
+    def test_property_support_claims_keep_different_objects_separate(self):
+        nodes = [
+            EvidenceNode(
+                node_id=f"N-{obj}",
+                node_type="fact",
+                source_material_id=f"M-{obj}",
+                source_type="statement",
+                summary=f"{obj}原先占有",
+                metadata={
+                    "actor": "张三",
+                    "predicate": "prior_possession",
+                    "object": obj,
+                    "event_id": "event-1",
+                },
+            )
+            for obj in ("手机", "现金")
+        ]
+
+        claims = AssertionNormalizer().build_claims(
+            AssertionNormalizer().normalize_graph(CaseGraph(nodes=nodes))
+        )
+
+        self.assertEqual({claim.object for claim in claims}, {"手机", "现金"})
+        self.assertEqual(len(claims), 2)
+
     def test_metadata_rich_nodes_normalize_and_group_by_actor_predicate_target_and_event(self):
         graph = CaseGraph(
             nodes=[

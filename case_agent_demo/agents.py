@@ -21,6 +21,8 @@ from case_agent_demo.models import (
     MaterialType,
     ReviewResult,
     fact_to_node,
+    infer_claim_types,
+    infer_predicate_stance,
 )
 from case_agent_demo.config import ModelProfile, ModelProfiles
 from case_agent_demo.material_plan import MaterialPlan
@@ -32,6 +34,7 @@ from case_agent_demo.vision_tools import ImageEvidenceDescription
 def _find_person(text: str) -> str:
     normalized = re.sub(r"\s+", "", text)
     label_patterns = [
+        r"报警人([\u4e00-\u9fa5]{2,4}?)(?=称|报称|反映|，|,|。|$)",
         r"嫌疑人([\u4e00-\u9fa5]{2,4}?)(?=首先|先|将|把|与|和|，|,|。|$)",
         r"被询问人([\u4e00-\u9fa5]{2,4}?)(?=问[:：]|男|女|，|,|。|$)",
         r"被鉴定人[:：]?([\u4e00-\u9fa5]{2,4}?)(?=，|,|。|男|女|所受|$)",
@@ -45,7 +48,7 @@ def _find_person(text: str) -> str:
             if person:
                 return person
 
-    match = re.search(r"([\u4e00-\u9fa5]{2,3})(?:称|出现在|没有|参与)", normalized)
+    match = re.search(r"([\u4e00-\u9fa5]{2,3})(?:(?<!所)称|出现在|没有|参与)", normalized)
     if not match:
         return "未识别人员"
     person = _clean_person_candidate(match.group(1))
@@ -58,10 +61,40 @@ def _find_person(text: str) -> str:
 
 def _clean_person_candidate(candidate: str) -> str:
     person = candidate.strip("：:，,。；;、 ")
-    bad_fragments = ("我", "你", "他", "她", "其", "本所", "我所", "首先", "之后", "工作", "司法", "鉴定")
+    if len(person) == 3 and person[-1] in "趁从使等在存连又砸投拿":
+        person = person[:-1]
+    bad_fragments = (
+        "我", "你", "他", "她", "其", "本所", "我所", "首先", "之后", "工作", "司法", "鉴定",
+        "车辆", "金属", "危险", "报告", "现场", "明确", "功能", "结果", "人员", "衣领", "就用",
+        "石岩", "又把", "关系",
+    )
     if any(fragment in person for fragment in bad_fragments):
         return ""
     return person
+
+
+_COMMON_SURNAME = "赵钱孙李周吴郑王冯陈褚卫蒋沈韩杨朱秦尤许何吕施张孔曹严华金魏陶姜戚谢邹喻柏水窦章云苏潘葛奚范彭郎鲁韦昌马苗凤花方俞任袁柳鲍史唐费廉岑薛雷贺倪汤滕殷罗毕郝邬安常乐于傅皮卞齐康伍余元卜顾孟平黄和穆萧尹姚邵湛汪祁毛禹狄米贝明臧计伏成戴宋茅庞熊纪舒屈项祝董梁杜阮蓝闵席季麻强贾路娄危江童颜郭梅盛林刁钟徐邱骆高夏蔡田樊胡凌霍虞万支柯管卢莫经房裘缪干解应宗丁宣邓郁单杭洪包诸左石崔吉龚程邢裴陆荣翁荀羊惠甄曲封芮羿储靳汲邴糜松井段富巫乌焦巴弓牧隗山谷车侯宓蓬全郗班仰秋仲伊宫宁仇栾暴甘钭厉戎祖武符刘景詹束龙叶幸司韶郜黎蓟薄印宿白怀蒲台从鄂索咸籍赖卓蔺屠蒙池乔阴胥能苍双闻莘党翟谭贡劳姬申扶堵冉宰郦雍郤璩桑桂濮牛寿通边扈燕冀郏浦尚农温别庄晏柴瞿阎充慕连茹习宦艾鱼容向古易慎戈廖庾终暨居衡步都耿满弘匡国文寇广禄阙东欧殳沃利蔚越夔隆师巩厍聂晁勾敖融冷訾辛阚那简饶空曾毋沙乜养鞠须丰巢关蒯相查后荆红游竺权逯盖益桓公"
+_PERSON_NAME_RE = re.compile(rf"[{_COMMON_SURNAME}][\u4e00-\u9fa5]{{1,2}}")
+
+
+def _named_people(text: str) -> list[str]:
+    normalized = _compact_text(text)
+    name = rf"([{_COMMON_SURNAME}][\u4e00-\u9fa5]{{1,2}})"
+    patterns = (
+        rf"(?:被询问人|嫌疑人|行为人|违法行为人|被告人|受害人|被害人|被侵害人|被鉴定人)[:：]?\s*{name}",
+        rf"(?:我叫|同事|朋友|证人)\s*{name}",
+        rf"(?:显示|表明|记录|可见)\s*{name}",
+        rf"(?:与|和|把|将|对|向)\s*{name}(?=的|发生|拉|拽|抱|殴打|击打|推|掐|拿|偷|摔|砸|损坏|转账|汇款|付款|支付|声称|[，。；;\s])",
+        rf"(?:^|[，。；;\s]){name}(?=[^，。；;]{{0,20}}(?:拉|拽|抱摔|殴打|击打|推搡|掐|拿走|窃取|偷走|摔坏|砸坏|损坏|投放|放火|引爆|起哄|冲闯|扰乱|虚构|隐瞒|谎称|声称|欺骗|骗取|转账|汇款|付款|支付|被))",
+        rf"{name}(?=[^，。；;]{{0,4}}(?:拉|拽|抱摔|殴打|击打|推搡|掐|拿走|窃取|偷走|摔坏|砸坏|损坏|投放|放火|引爆|起哄|冲闯|扰乱|虚构|隐瞒|谎称|声称|欺骗|骗取|转账|汇款|付款|支付))",
+    )
+    names: list[str] = []
+    for pattern in patterns:
+        for value in re.findall(pattern, normalized):
+            candidate = _clean_person_candidate(value)
+            if candidate and candidate not in names:
+                names.append(candidate)
+    return sorted(names, key=normalized.find)
 
 def _find_time(text: str) -> str:
     match = re.search(r"(\d{4}年\d{1,2}月\d{1,2}日(?:\d{1,2}时(?:\d{1,2}分)?许?)?)", text)
@@ -113,12 +146,56 @@ def _find_location(text: str) -> str:
 
 
 def _find_named_actor(text: str, fallback: str) -> str:
-    for name in ("李文杰", "贺显作", "张三", "李四"):
-        if name in text:
-            if "我" in text and name == fallback:
-                return name
-            if any(action in text for action in ("抱摔", "拽", "拉", "殴打", "打")):
-                return name
+    normalized = _compact_text(text)
+    role_match = re.search(
+        r"(?:嫌疑人|行为人|违法行为人|被告人)[:：]?\s*([\u4e00-\u9fa5]{2,4}?)(?=首先|先|实施|将|把|拉|拽|抱摔|殴打|击打|推|掐|拿|偷|摔|砸|损坏|投放|放火|引爆|起哄|冲闯|扰乱|，|。|\s|$)",
+        normalized,
+    )
+    if role_match:
+        return _clean_person_candidate(role_match.group(1)) or fallback
+    action = r"(?:拉住|拉拽|拉|拽住|拽倒|拽|抱摔|殴打|击打|推搡|推|掐住|掐脖子|掐|拿走|窃取|偷走|摔坏|摔|砸坏|砸|损坏|投放|放火|引爆|起哄|冲闯|扰乱|虚构|隐瞒|谎称|声称|欺骗|骗取|转账|汇款|付款|支付|交付)"
+    collective_actor = re.search(
+        rf"(?:^|[，。；;\s])([{_COMMON_SURNAME}][\u4e00-\u9fa5]{{1,2}})等(?:人|多人)?[^，。；;]{{0,24}}{action}",
+        normalized,
+    )
+    if collective_actor:
+        return _clean_person_candidate(collective_actor.group(1)) or fallback
+    names = _named_people(normalized)
+    observed = re.search(
+        rf"(?:我|本人)(?:在[^，。；;]{{0,12}})?(?:看到|看见|目睹)({rf'[{_COMMON_SURNAME}][\u4e00-\u9fa5]{{1,2}}'})[^，。；;]{{0,12}}{action}",
+        normalized,
+    )
+    if observed:
+        return _clean_person_candidate(observed.group(1)) or fallback
+    if re.search(
+        rf"(?:^|[，。；;\s])(?:我|本人)(?:先|又|随后|就)?[^，。；;]{{0,10}}{action}",
+        normalized,
+    ):
+        return fallback
+    direct_actors = []
+    for name in names:
+        match = re.search(
+            rf"{re.escape(name)}([^，。；;]{{0,6}}?){action}",
+            normalized,
+        )
+        if match:
+            direct_actors.append((len(match.group(1)), normalized.find(name), name))
+    if direct_actors:
+        return min(direct_actors)[2]
+    for possible_actor in names:
+        for possible_target in names:
+            if possible_actor == possible_target:
+                continue
+            if re.search(
+                rf"{re.escape(possible_actor)}[^，。；;]{{0,16}}(?:把|将){re.escape(possible_target)}[^，。；;]{{0,6}}{action}",
+                normalized,
+            ):
+                return possible_actor
+    for name in names:
+        if re.search(rf"{re.escape(name)}[^，。；;]{{0,24}}{action}", normalized) and not re.search(
+            rf"{re.escape(name)}被[^，。；;]{{0,12}}{action}", normalized
+        ):
+            return name
     return fallback or _find_person(text)
 
 
@@ -131,13 +208,222 @@ def _find_injury(text: str) -> str:
 
 
 def _find_victim(text: str, actor: str = "") -> str:
-    for name in ("贺显作", "李文杰", "张三", "李四"):
-        if name and name != actor and name in text:
+    normalized = _normalize_text(text)
+    for label in ("受害人", "被害人", "被侵害人", "被鉴定人"):
+        match = re.search(
+            rf"{label}[:：]?([\u4e00-\u9fa5]{{2,4}}?)(?=首先|先|将|把|拉|拽|抱摔|殴打|击打|推|掐|拿|偷|摔|砸|损坏|问[:：]|男|女|，|。|\s|$)",
+            normalized,
+        )
+        if match:
+            candidate = _clean_person_candidate(match.group(1))
+            if candidate and candidate != actor:
+                return candidate
+    for name in _named_people(normalized):
+        if name != actor:
             return name
-    match = re.search(r"被鉴定人[:：]?([\u4e00-\u9fa5]{2,4})", _normalize_text(text))
-    if match:
-        return _clean_person_candidate(match.group(1))
     return ""
+
+
+def _find_action_target(text: str, actor: str, declarant: str = "") -> str:
+    normalized = _compact_text(text)
+    explicit_role = re.search(
+        r"(?:受害人|被害人|被侵害人|被鉴定人)[:：]?\s*([\u4e00-\u9fa5]{2,4}?)(?=首先|先|将|把|拉|拽|抱摔|殴打|击打|推|掐|拿|偷|摔|砸|损坏|，|。|\s|$)",
+        normalized,
+    )
+    if explicit_role and explicit_role.group(1) != actor:
+        return explicit_role.group(1)
+    role_target = _find_victim(normalized, actor)
+    name_pattern = rf"[{_COMMON_SURNAME}][\u4e00-\u9fa5]{{1,2}}"
+    actions = r"(?:拉住|拉拽|拽住|拽倒|抱摔|殴打|击打|推搡|掐住|掐脖子)"
+    patterns = []
+    if actor:
+        patterns.append(
+            rf"{re.escape(actor)}[^，。；;]{{0,16}}(?:把|将)({name_pattern})[^，。；;]{{0,6}}{actions}"
+        )
+        patterns.append(
+            rf"{re.escape(actor)}[^，。；;]{{0,12}}{actions}[^，。；;]{{0,6}}({name_pattern})"
+        )
+    patterns.append(rf"{actions}(?:了)?({name_pattern})")
+    for pattern in patterns:
+        match = re.search(pattern, normalized)
+        if match and match.group(1) != actor:
+            return match.group(1)
+    if declarant and declarant != actor and re.search(r"(?:我的|将我|把我|对我)", normalized):
+        return declarant
+    return role_target
+
+
+def _find_relation_target(text: str, actor: str, verbs: tuple[str, ...]) -> str:
+    normalized = _compact_text(text)
+    name = rf"[{_COMMON_SURNAME}][\u4e00-\u9fa5]{{1,2}}"
+    verb = "(?:" + "|".join(re.escape(item) for item in verbs) + ")"
+    patterns = []
+    if actor:
+        patterns.append(
+            rf"{re.escape(actor)}[^，。；;]{{0,12}}(?:向|对)({name})[^，。；;]{{0,12}}{verb}"
+        )
+    patterns.extend(
+        (
+            rf"(?:向|对)({name})[^，。；;]{{0,10}}{verb}",
+            rf"{verb}(?:了)?({name})",
+        )
+    )
+    for pattern in patterns:
+        match = re.search(pattern, normalized)
+        if match and match.group(1) != actor:
+            return match.group(1)
+    return ""
+
+
+def _find_directional_parties(
+    text: str,
+    verbs: tuple[str, ...],
+    *,
+    max_gap: int = 8,
+) -> tuple[str, str] | None:
+    normalized = _compact_text(text)
+    name = rf"([{_COMMON_SURNAME}][\u4e00-\u9fa5]{{1,2}})"
+    verb = "(?:" + "|".join(re.escape(item) for item in verbs) + ")"
+    match = re.search(
+        rf"{name}(?:向|对){name}(?:账户)?[^，。；;]{{0,{max_gap}}}{verb}",
+        normalized,
+    )
+    if not match:
+        return None
+    return match.group(1), match.group(2)
+
+
+def _find_event_id(text: str) -> str:
+    explicit = re.search(r"(?:事件编号|案件编号|警情编号)[:：]?\s*([A-Za-z0-9_-]{4,64})", text)
+    if explicit:
+        return explicit.group(1)
+    occurred = _find_time(text)
+    date = re.search(r"(\d{4})年(\d{1,2})月(\d{1,2})日", occurred)
+    if date:
+        location = re.sub(r"\W+", "", _find_location(text))[:30]
+        if location:
+            return (
+                f"DATE-{int(date.group(1)):04d}{int(date.group(2)):02d}{int(date.group(3)):02d}"
+                f"-{location}"
+            )
+    return ""
+
+
+def _find_explicit_event_id(text: str) -> str:
+    explicit = re.search(r"(?:事件编号|案件编号|警情编号)[:：]?\s*([A-Za-z0-9_-]{4,64})", text)
+    return explicit.group(1) if explicit else ""
+
+
+def _semantic_assertions(
+    *,
+    material: Material,
+    declarant: str,
+    actor: str,
+    target_person: str,
+    predicate: str,
+    obj: str,
+    text: str,
+) -> list[dict[str, Any]]:
+    event_id = (
+        _find_explicit_event_id(material.content)
+        or _find_event_id(text)
+        or f"MATERIAL-{material.material_id}"
+    )
+    declarant_role = str(
+        material.metadata.get("declarant_role") or _infer_declarant_role(material.content)
+    )
+    base_stance = infer_predicate_stance(text, predicate)
+    assertion_role = _material_assertion_role(material, declarant_role, base_stance)
+    base = {
+        "actor": actor,
+        "target_person": target_person,
+        "object": obj,
+        "event_id": event_id,
+        "stance": base_stance,
+        "source_group": material.material_id,
+        "origin_evidence": material.material_id,
+        "declarant": declarant,
+        "declarant_role": declarant_role,
+        "assertion_role": assertion_role,
+        "evidence_category": material.metadata.get(
+            "evidence_category", material.material_type.value
+        ),
+    }
+    assertions = [{**base, "predicate": predicate}]
+    contextual_predicates = {
+        "deceptive_representation",
+        "mistaken_belief",
+        "property_disposition",
+        "property_loss",
+        "prior_possession",
+        "possession_transfer",
+        "property_trace",
+        "alternative_explanation",
+        "damage_exists",
+        "public_order_conduct",
+        "public_context",
+        "operational_impact",
+        "persistence_or_group",
+        "hazardous_conduct",
+        "dangerous_object_or_condition",
+        "exposure",
+        "control_failure",
+        "duty_record_present",
+        "qualification_record_present",
+        "authorization_record_absent",
+        "conduct_recorded",
+    }
+    for inferred in infer_claim_types(text, obj):
+        if inferred in contextual_predicates and inferred != predicate:
+            if (
+                inferred == "property_disposition"
+                and material.material_type != MaterialType.STATEMENT
+                and _find_directional_parties(
+                    text,
+                    ("转账", "汇款", "付款", "支付", "交付"),
+                    max_gap=2,
+                )
+                is None
+            ):
+                continue
+            inferred_stance = infer_predicate_stance(text, inferred)
+            assertion = {
+                **base,
+                "predicate": inferred,
+                "stance": inferred_stance,
+                "assertion_role": _material_assertion_role(
+                    material, declarant_role, inferred_stance
+                ),
+            }
+            if inferred in {"mistaken_belief", "property_disposition", "property_loss"}:
+                assertion.update(
+                    actor=declarant,
+                    target_person=actor if actor != declarant else target_person,
+                )
+            assertions.append(assertion)
+    result_terms = ("受伤", "流血", "骨折", "轻伤", "重伤", "损伤", "肿包")
+    if target_person and any(term in text for term in result_terms) and predicate == "violence":
+        assertions.append(
+            {
+                **base,
+                "actor": target_person,
+                "target_person": target_person,
+                "object": _find_injury(text),
+                "predicate": "injury_consequence",
+            }
+        )
+    relation_target = target_person or obj
+    if relation_target and any(
+        term in text
+        for term in ("形成机制与", "作用机制与", "机制吻合", "机制一致", "相吻合", "受击位置一致")
+    ):
+        assertions.append({**base, "predicate": "mechanism_compatible"})
+    if relation_target and any(term in text for term in ("随即", "立即", "当场", "紧接着", "五秒后", "5秒后")):
+        assertions.append({**base, "predicate": "temporal_proximity"})
+    return list({
+        (item["actor"], item["predicate"], item["target_person"], item["event_id"]): item
+        for item in assertions
+    }.values())
 
 
 def _find_object(text: str, candidates: tuple[str, ...]) -> str:
@@ -147,10 +433,43 @@ def _find_object(text: str, candidates: tuple[str, ...]) -> str:
     return ""
 
 
+def _find_money_amount(text: str) -> str:
+    match = re.search(r"([零一二三四五六七八九十百千万亿两\d,.]+(?:万|亿)?元)", text)
+    return match.group(1) if match else ""
+
+
+def _infer_declarant_role(text: str) -> str:
+    if any(label in text for label in ("报警人", "报案人", "被害人", "受害人", "被侵害人", "权利人", "占有人")):
+        return "reporting_person"
+    if any(label in text for label in ("嫌疑人", "行为人", "违法行为人", "被告人")):
+        return "alleged_actor"
+    if "证人" in text:
+        return "witness"
+    return ""
+
+
+def _material_assertion_role(
+    material: Material,
+    declarant_role: str,
+    stance: str,
+) -> str:
+    if material.material_type != MaterialType.STATEMENT:
+        return "evidence_observation"
+    if declarant_role == "reporting_person" and stance == "affirm":
+        return "allegation"
+    if declarant_role == "alleged_actor" and stance == "deny":
+        return "defense_response"
+    if declarant_role in {"alleged_actor", "witness"}:
+        return "statement_evidence"
+    return "allegation" if stance == "affirm" else "defense_response"
+
+
 def _find_property_actor(text: str, fallback_person: str) -> str:
     normalized = _compact_text(text)
-    for name in ("李文杰", "贺显作", "张三", "李四"):
+    for name in _named_people(normalized):
         if name in normalized and re.search(rf"{name}[^，。；;]{{0,12}}(?:把|将)", normalized):
+            return name
+        if re.search(rf"{name}[^，。；;]{{0,16}}(?:拿走|拿取|偷走|窃取|摔坏|砸坏|损坏)", normalized):
             return name
     if re.search(r"他(?:来|到|上前|走到)[^，。；;]{0,16}(?:把|将)", normalized):
         actor = _find_victim(normalized, fallback_person)
@@ -185,10 +504,46 @@ def _summarize_property_text(text: str, fallback_person: str) -> tuple[str, str]
     return None
 
 
-def _summarize_assault_text(text: str, fallback_person: str) -> tuple[str, str]:
+def _statement_primary_actor(full_text: str, event_text: str, declarant: str) -> str:
+    compact = _compact_text(full_text)
+    if re.search(r"(?:有没有殴打|有无动手|有没有打架)[^答]{0,60}答[:：]?\s*(?:我有|有的|有)", compact):
+        return declarant
+    related = _counterparty_names(full_text, declarant)
+    others = related or [name for name in _named_people(full_text) if name != declarant]
+    if others and re.search(
+        r"答[:：]?\s*我没有[^问]{0,30}(?:他|对方)[^问]{0,12}(?:打|殴打|动手)",
+        compact,
+    ):
+        return others[0]
+    if others and re.search(r"(?:之后|随后|然后)(?:他|对方)[^，。；;]{0,20}(?:拉|拽|抱摔|殴打|击打)", event_text):
+        return others[0]
+    return _find_named_actor(event_text, declarant)
+
+
+def _counterparty_names(text: str, declarant: str) -> list[str]:
     normalized = _compact_text(text)
-    actor = "李文杰" if "李文杰" in normalized and any(word in normalized for word in ("抱摔", "拽倒", "拉")) else fallback_person
-    victim = _find_victim(normalized, actor)
+    name = rf"([{_COMMON_SURNAME}][\u4e00-\u9fa5]{{1,2}})"
+    values = re.findall(
+        rf"(?:同事|受害人|被害人|被侵害人|嫌疑人|行为人|被告人|被鉴定人)[:：]?\s*{name}",
+        normalized,
+    )
+    return [
+        candidate
+        for value in values
+        if (candidate := _clean_person_candidate(value)) and candidate != declarant
+    ]
+
+
+def _summarize_assault_text(
+    text: str,
+    fallback_person: str,
+    actor_hint: str = "",
+) -> tuple[str, str]:
+    normalized = _compact_text(text)
+    actor = actor_hint or _find_named_actor(normalized, fallback_person)
+    victim = _find_action_target(normalized, actor, fallback_person)
+    if not victim and fallback_person and fallback_person != actor:
+        victim = fallback_person
     actions: list[str] = []
     if any(word in normalized for word in ("拉他的衣领", "拉后衣领", "拽住", "拽倒", "拉到在地", "拉倒在地")):
         actions.append("拉拽衣领并拽倒")
@@ -218,7 +573,73 @@ def _summarize_statement_fact(material: Material) -> Fact:
         or _extract_answer(material.content, "伤是如何造成")
         or material.content
     )
-    behavior, obj = _summarize_property_text(event_text, person) or _summarize_assault_text(event_text, person)
+    property_summary = _summarize_property_text(event_text, person)
+    assault_terms = ("拉", "拽", "抱摔", "殴打", "击打", "推搡", "掐", "打架", "动手")
+    is_assault = any(term in event_text for term in assault_terms)
+    if property_summary:
+        behavior, obj = property_summary
+    elif is_assault:
+        assault_actor = _statement_primary_actor(material.content, event_text, person)
+        behavior, obj = _summarize_assault_text(
+            event_text,
+            person,
+            assault_actor,
+        )
+    else:
+        behavior = _shorten(event_text)
+        obj = _find_object(event_text, ("手机", "车辆", "现金", "财物", "危险物质", "爆炸物"))
+        obj = obj or _find_money_amount(event_text)
+    actor = assault_actor if is_assault and not property_summary else _find_named_actor(behavior, person)
+    if property_summary or not is_assault:
+        target = ""
+    elif actor == person:
+        counterparties = _counterparty_names(material.content, person)
+        target = counterparties[0] if counterparties else _find_action_target(material.content, actor, person)
+    elif any(term in material.content for term in ("证人证言", "我看到", "我看见", "我目睹")):
+        target = _find_action_target(material.content, actor, person)
+    else:
+        target = person
+    predicate = "property_damage" if property_summary and any(term in behavior for term in ("损坏", "摔坏", "砸坏")) else (
+        "taking_property" if property_summary else (
+            "violence" if is_assault else infer_claim_types(behavior, obj)[0]
+        )
+    )
+    if predicate == "deceptive_representation" and actor != person:
+        target = person
+    if predicate == "deceptive_representation":
+        directional = _find_directional_parties(
+            event_text,
+            ("谎称", "声称", "欺骗", "骗取"),
+        )
+        if directional:
+            actor, target = directional
+        target = _find_relation_target(
+            event_text,
+            actor,
+            ("谎称", "声称", "欺骗", "骗取"),
+        ) or target
+    elif predicate == "property_disposition":
+        directional = _find_directional_parties(
+            event_text,
+            ("转账", "汇款", "付款", "支付", "交付"),
+            max_gap=2,
+        )
+        if directional:
+            actor, target = directional
+        target = _find_relation_target(
+            event_text,
+            actor,
+            ("转账", "汇款", "付款", "支付", "交付"),
+        ) or target
+    assertions = _semantic_assertions(
+        material=material,
+        declarant=person,
+        actor=actor,
+        target_person=target,
+        predicate=predicate,
+        obj=obj,
+        text=event_text,
+    )
     return Fact(
         fact_id=f"F-{material.material_id}-TEXT",
         source_material_id=material.material_id,
@@ -229,6 +650,7 @@ def _summarize_statement_fact(material: Material) -> Fact:
         location=_find_location(event_text or material.content),
         object=obj,
         confidence=0.86,
+        metadata={**assertions[0], "assertions": assertions},
     )
 
 
@@ -248,6 +670,9 @@ def _extract_denial_facts(material: Material) -> list[Fact]:
         (r"现场有没有人受伤[^答]{0,40}答[:：]?\s*(?:没有|我没有[^，。；;]*，?[^。；;]*没有受伤)", "没有人受伤", "injury_consequence"),
     ]
     facts: list[Fact] = []
+    declarant_role = str(
+        material.metadata.get("declarant_role") or _infer_declarant_role(material.content)
+    )
     for index, (pattern, behavior, _claim_type) in enumerate(patterns, start=1):
         if not re.search(pattern, text):
             continue
@@ -262,6 +687,23 @@ def _extract_denial_facts(material: Material) -> list[Fact]:
                 location=_find_location(event_text),
                 object=victim,
                 confidence=0.84,
+                metadata={
+                    "actor": person,
+                    "target_person": victim,
+                    "predicate": _claim_type,
+                    "event_id": _find_explicit_event_id(material.content) or _find_event_id(event_text),
+                    "stance": "deny",
+                    "source_group": material.material_id,
+                    "origin_evidence": material.material_id,
+                    "declarant": person,
+                    "declarant_role": declarant_role,
+                    "assertion_role": _material_assertion_role(
+                        material, declarant_role, "deny"
+                    ),
+                    "evidence_category": material.metadata.get(
+                        "evidence_category", material.material_type.value
+                    ),
+                },
             )
         )
     return facts
@@ -281,20 +723,99 @@ def _summarize_image_fact(material: Material, content: str, confidence: float) -
         location=_find_location(content),
         object=obj,
         confidence=confidence,
+        metadata={
+            **material.metadata,
+            "assertion_role": "evidence_observation",
+            "evidence_category": material.metadata.get(
+                "evidence_category", material.material_type.value
+            ),
+        },
     )
 
 
 def _summarize_report_fact(material: Material, content: str, confidence: float) -> Fact:
-    report_type = "监控研判报告" if any(word in content for word in ("监控", "研判")) else "法医鉴定报告"
+    if any(word in content for word in ("监控", "研判")):
+        report_type = "监控研判报告"
+    elif any(word in content for word in ("鉴定意见", "法医", "轻伤", "重伤")):
+        report_type = "法医鉴定报告"
+    else:
+        report_type = "报告材料"
     person = _find_person(content)
     injury = _find_injury(content)
     if "鉴定意见" in content or "轻伤" in content:
         victim = _find_victim(content) or person
         behavior = f"{report_type}认定{victim}所受损伤为{injury or '需结合报告原文核对'}"
         obj = f"{victim} {injury}".strip()
+        assertions = _semantic_assertions(
+            material=material,
+            declarant=person,
+            actor=victim,
+            target_person=victim,
+            predicate="injury_grade",
+            obj=injury,
+            text=content,
+        )
+        for item in assertions:
+            if item["predicate"] == "injury_grade":
+                item["authority_candidate"] = True
     else:
-        behavior, obj = _summarize_assault_text(content, person)
+        property_summary = _summarize_property_text(content, person)
+        assault_terms = ("拉", "拽", "抱摔", "殴打", "击打", "推搡", "掐", "打架", "动手")
+        is_assault = any(term in content for term in assault_terms)
+        if property_summary:
+            behavior, obj = property_summary
+        elif is_assault:
+            behavior, obj = _summarize_assault_text(content, person)
+        else:
+            behavior = _shorten(content)
+            obj = _find_object(content, ("手机", "车辆", "现金", "财物", "危险物质", "爆炸物"))
+            obj = obj or _find_money_amount(content)
         behavior = f"{report_type}显示{behavior}"
+        actor = _find_named_actor(behavior, person)
+        target = "" if property_summary or not is_assault else _find_action_target(content, actor, person)
+        predicate = "property_damage" if property_summary and any(term in behavior for term in ("损坏", "摔坏", "砸坏")) else (
+            "taking_property" if property_summary else (
+                "violence" if is_assault else infer_claim_types(behavior, obj)[0]
+            )
+        )
+        if property_summary and actor == "未识别人员" and any(
+            term in content for term in ("损坏结果", "功能丧失", "维修损失")
+        ):
+            predicate = "damage_exists"
+        if predicate == "deceptive_representation":
+            directional = _find_directional_parties(
+                content,
+                ("谎称", "声称", "欺骗", "骗取"),
+            )
+            if directional:
+                actor, target = directional
+            target = _find_relation_target(
+                content,
+                actor,
+                ("谎称", "声称", "欺骗", "骗取"),
+            ) or target
+        elif predicate == "property_disposition":
+            directional = _find_directional_parties(
+                content,
+                ("转账", "汇款", "付款", "支付", "交付"),
+                max_gap=2,
+            )
+            if directional:
+                actor, target = directional
+            target = _find_relation_target(
+                content,
+                actor,
+                ("转账", "汇款", "付款", "支付", "交付"),
+            ) or target
+        assertions = _semantic_assertions(
+            material=material,
+            declarant=person,
+            actor=actor,
+            target_person=target,
+            predicate=predicate,
+            obj=obj,
+            text=content,
+        )
     return Fact(
         fact_id=f"F-{material.material_id}-REPORT",
         source_material_id=material.material_id,
@@ -305,18 +826,7 @@ def _summarize_report_fact(material: Material, content: str, confidence: float) 
         location=_find_location(content),
         object=obj,
         confidence=confidence,
-        metadata={
-            "actor": victim,
-            "target_person": victim,
-            "predicate": "injury_grade",
-            "event_id": material.material_id,
-            "stance": "affirm",
-            "source_group": material.material_id,
-            "origin_evidence": material.material_id,
-            "authority_candidate": True,
-        }
-        if "鉴定意见" in content or "轻伤" in content
-        else {},
+        metadata={**assertions[0], "assertions": assertions},
     )
 
 
@@ -440,6 +950,14 @@ def _facts_from_json(data: dict[str, Any], material: Material) -> list[Fact]:
     for index, item in enumerate(raw_facts, start=1):
         if not isinstance(item, dict):
             continue
+        metadata = dict(item.get("metadata", {})) if isinstance(item.get("metadata"), dict) else {}
+        for key in (
+            "actor", "target_person", "predicate", "event_id", "stance", "source_group",
+            "origin_evidence", "declarant", "assertions", "assertion_role",
+            "declarant_role", "evidence_category", "modality",
+        ):
+            if key in item:
+                metadata[key] = item[key]
         facts.append(
             Fact(
                 fact_id=str(item.get("fact_id") or f"F-{material.material_id}-TEXT-{index}"),
@@ -451,6 +969,7 @@ def _facts_from_json(data: dict[str, Any], material: Material) -> list[Fact]:
                 location=str(item.get("location", "")),
                 object=str(item.get("object", "")),
                 confidence=float(item.get("confidence", 0.8) or 0.8),
+                metadata=metadata,
             )
         )
     return facts or TextAgent()._extract_fallback(material)
@@ -822,8 +1341,14 @@ class ReasoningAgent:
         conflict_lines = "\n".join(f"- {item.conflict_type}：{item.source_a} 与 {item.source_b} 需人工核对" for item in conflicts)
         if not conflict_lines:
             conflict_lines = "- 暂未发现结构化规则可识别的冲突。"
+        case_type_context = payload.get("case_type_context")
+        if case_type and getattr(case_type_context, "status", "confirmed") == "confirmed":
+            case_heading = f"人工确认案件类型：{case_type}"
+        else:
+            domains = "、".join(getattr(case_type_context, "domains", []) or [])
+            case_heading = f"自动识别事实领域：{domains or '尚未形成稳定分类'}"
         return (
-            f"人工确认案件类型：{case_type}\n\n"
+            f"{case_heading}\n\n"
             f"现有证据显示（行为事实）：\n{fact_lines}\n\n"
             f"时间地点：\n{time_location_lines}\n\n"
             f"对象与后果：\n{object_lines}\n\n"

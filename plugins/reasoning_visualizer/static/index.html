@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>推理图谱观察台</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand-block">
+      <div class="brand-mark" aria-hidden="true"><i data-lucide="network"></i></div>
+      <div class="brand-copy">
+        <h1>推理图谱观察台</h1>
+        <p id="caseType">载入中</p>
+      </div>
+    </div>
+
+    <nav class="view-tabs" aria-label="图谱视图" role="tablist">
+      <button class="view-tab is-active" id="evidenceTab" type="button" role="tab" aria-selected="true" data-view="evidence">
+        证据图
+      </button>
+      <button class="view-tab" id="bayesianTab" type="button" role="tab" aria-selected="false" data-view="bayesian">
+        贝叶斯网络
+      </button>
+    </nav>
+
+    <div class="top-actions">
+      <div class="header-stat"><strong id="nodeCount">0</strong><span>节点</span></div>
+      <div class="header-stat"><strong id="runCount">0</strong><span>网络</span></div>
+      <input id="snapshotFile" type="file" accept="application/json,.json" hidden>
+      <button class="icon-button" id="openSnapshot" type="button" title="打开快照" aria-label="打开快照">
+        <i data-lucide="folder-open"></i>
+      </button>
+      <button class="icon-button" id="saveSnapshot" type="button" title="保存快照" aria-label="保存快照">
+        <i data-lucide="save"></i>
+      </button>
+    </div>
+  </header>
+
+  <main class="workspace">
+    <aside class="control-pane" aria-label="图谱控制">
+      <section class="pane-section" id="evidenceControls">
+        <div class="section-heading">
+          <h2>节点类型</h2>
+          <button class="icon-button small" id="toggleAllKinds" type="button" title="切换全部节点" aria-label="切换全部节点">
+            <i data-lucide="list-filter"></i>
+          </button>
+        </div>
+        <div class="filter-list" id="kindFilters"></div>
+        <label class="field-label" for="relationFilter">关系</label>
+        <select id="relationFilter">
+          <option value="all">全部关系</option>
+        </select>
+      </section>
+
+      <section class="pane-section is-hidden" id="bayesianControls">
+        <label class="field-label" for="runSelect">推理运行</label>
+        <select id="runSelect"></select>
+
+        <div class="run-meta" id="runMeta"></div>
+
+        <div class="section-heading simulation-heading">
+          <h2>输入模拟</h2>
+          <button class="icon-button small" id="resetScenario" type="button" title="恢复运行值" aria-label="恢复运行值">
+            <i data-lucide="rotate-ccw"></i>
+          </button>
+        </div>
+        <div class="slider-list" id="scenarioControls"></div>
+      </section>
+
+      <section class="pane-section trace-section">
+        <h2>执行轨迹</h2>
+        <ol class="agent-trace" id="agentTrace"></ol>
+      </section>
+    </aside>
+
+    <section class="graph-stage" aria-label="推理图谱">
+      <div class="graph-toolbar">
+        <div class="search-box">
+          <i data-lucide="search" aria-hidden="true"></i>
+          <input id="graphSearch" type="search" placeholder="搜索节点" aria-label="搜索节点">
+          <button class="icon-button small" id="clearSearch" type="button" title="清除搜索" aria-label="清除搜索">
+            <i data-lucide="x"></i>
+          </button>
+        </div>
+        <div class="toolbar-actions">
+          <button class="icon-button" id="zoomIn" type="button" title="放大" aria-label="放大"><i data-lucide="zoom-in"></i></button>
+          <button class="icon-button" id="zoomOut" type="button" title="缩小" aria-label="缩小"><i data-lucide="zoom-out"></i></button>
+          <button class="icon-button" id="fitGraph" type="button" title="适应画布" aria-label="适应画布"><i data-lucide="maximize"></i></button>
+          <button class="icon-button" id="resetLayout" type="button" title="重新布局" aria-label="重新布局"><i data-lucide="route"></i></button>
+        </div>
+      </div>
+      <div id="graph" tabindex="0"></div>
+      <div class="empty-state is-hidden" id="emptyState">
+        <i data-lucide="circle-off" aria-hidden="true"></i>
+        <strong id="emptyTitle">暂无图谱</strong>
+        <span id="emptyText">当前快照没有可显示的数据</span>
+      </div>
+      <div class="legend" id="legend"></div>
+    </section>
+
+    <aside class="inspector-pane" aria-label="节点详情">
+      <div class="inspector-header">
+        <div>
+          <span class="eyebrow" id="detailKind">未选择</span>
+          <h2 id="detailTitle">节点详情</h2>
+        </div>
+        <button class="icon-button small" id="clearSelection" type="button" title="清除选择" aria-label="清除选择">
+          <i data-lucide="panel-right-close"></i>
+        </button>
+      </div>
+      <div class="inspector-body" id="detailBody">
+        <div class="detail-placeholder">
+          <i data-lucide="mouse-pointer-2" aria-hidden="true"></i>
+          <span>选择节点或关系</span>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <footer class="statusbar">
+    <div class="status-item"><span class="status-dot" id="healthDot"></span><span id="healthText">读取快照</span></div>
+    <div class="status-item"><span>Schema</span><code id="schemaVersion">-</code></div>
+    <div class="status-item status-right"><span id="generatedAt">-</span></div>
+  </footer>
+
+  <script src="vendor/cytoscape-3.34.0.min.js"></script>
+  <script src="vendor/lucide-1.24.0.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

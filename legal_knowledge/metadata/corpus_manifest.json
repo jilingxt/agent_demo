@@ -1,0 +1,67 @@
+{
+  "index_version": "legal-hybrid-rag-v1",
+  "embedding_backend": "fastembed",
+  "embedding_model": "BAAI/bge-small-zh-v1.5",
+  "documents": [
+    {
+      "document_id": "D-548a424e2b06",
+      "title": "中华人民共和国刑事诉讼法",
+      "doc_type": "criminal_procedure_law",
+      "version": "2018年修正",
+      "document_hash": "ee4320378f289941d201a4266afc416bad651c2d98c771a13bbd9569877d5301",
+      "effective_status": "effective",
+      "source_path": "F:\\汇报\\Va1ha11a_demo\\law_DB\\刑诉法.pdf",
+      "chunk_count": 308,
+      "metadata": {
+        "version_label": "2018年修正",
+        "record_status": "active",
+        "legal_status": "effective",
+        "jurisdiction": "CN",
+        "legal_level": "law",
+        "source_file": "刑诉法.pdf",
+        "page_count": 41,
+        "effective_from": ""
+      }
+    },
+    {
+      "document_id": "D-6024525a467e",
+      "title": "中华人民共和国刑法",
+      "doc_type": "criminal_law",
+      "version": "2023年修正",
+      "document_hash": "74ec867761610dccaca1d380f6dad0f2de80ea8821a86854d40bbf2564ba63a4",
+      "effective_status": "effective",
+      "source_path": "F:\\汇报\\Va1ha11a_demo\\law_DB\\刑法.pdf",
+      "chunk_count": 505,
+      "metadata": {
+        "version_label": "2023年修正",
+        "record_status": "active",
+        "legal_status": "effective",
+        "jurisdiction": "CN",
+        "legal_level": "law",
+        "source_file": "刑法.pdf",
+        "page_count": 71,
+        "effective_from": ""
+      }
+    },
+    {
+      "document_id": "D-cd15f4f1ac12",
+      "title": "中华人民共和国治安管理处罚法",
+      "doc_type": "public_security_law",
+      "version": "2025年修订",
+      "document_hash": "cee8d240af947be003fbf177db9129d930bd13757c77d6b45e9a9aedc2faa58a",
+      "effective_status": "effective",
+      "source_path": "F:\\汇报\\Va1ha11a_demo\\law_DB\\治安管理处罚法.pdf",
+      "chunk_count": 144,
+      "metadata": {
+        "version_label": "2025年修订",
+        "record_status": "active",
+        "legal_status": "effective",
+        "jurisdiction": "CN",
+        "legal_level": "law",
+        "source_file": "治安管理处罚法.pdf",
+        "page_count": 23,
+        "effective_from": "2026-01-01"
+      }
+    }
+  ]
+}

@@ -37,6 +37,7 @@
       },
       "derived_nodes": ["causation"],
       "anchor_inputs": ["conduct"],
+      "required_inputs": ["conduct", "result_exists"],
       "priority": 0
     },
     {
@@ -59,6 +60,7 @@
       },
       "derived_nodes": ["taking_supported"],
       "anchor_inputs": ["taking_action"],
+      "required_inputs": ["taking_action", "prior_possession"],
       "priority": 0
     },
     {
@@ -79,6 +81,7 @@
       },
       "derived_nodes": ["order_disruption"],
       "anchor_inputs": ["conduct"],
+      "required_inputs": ["conduct", "public_context"],
       "priority": 0
     },
     {
@@ -99,6 +102,7 @@
       },
       "derived_nodes": ["public_danger"],
       "anchor_inputs": ["hazardous_conduct"],
+      "required_inputs": ["hazardous_conduct", "dangerous_object_or_condition"],
       "priority": 0
     },
     {
@@ -108,8 +112,8 @@
       "trigger_predicates": [
         "qualification_record_present",
         "duty_record_present",
-        "conduct_recorded",
-        "authorization_record_absent"
+        "authorization_record_absent",
+        "conduct_recorded"
       ],
       "input_map": {
         "qualification_record_present": "qualification_record_present",
@@ -119,6 +123,34 @@
       },
       "derived_nodes": ["status_duty_facts_supported"],
       "anchor_inputs": ["conduct_recorded"],
+      "required_inputs": ["conduct_recorded", "duty_record_present"],
+      "priority": 0
+    },
+    {
+      "model_id": "deception_disposition",
+      "path": "deception_disposition_v1.json",
+      "domains": ["property_rights", "economic_order"],
+      "trigger_predicates": [
+        "deceptive_representation",
+        "mistaken_belief",
+        "property_disposition",
+        "property_loss",
+        "alternative_explanation"
+      ],
+      "input_map": {
+        "deceptive_representation": "deceptive_representation",
+        "mistaken_belief": "mistaken_belief",
+        "property_disposition": "property_disposition",
+        "property_loss": "property_loss",
+        "alternative_explanation": "alternative_explanation"
+      },
+      "derived_nodes": ["disposition_link"],
+      "anchor_inputs": ["deceptive_representation"],
+      "required_inputs": [
+        "deceptive_representation",
+        "mistaken_belief",
+        "property_disposition"
+      ],
       "priority": 0
     }
   ]

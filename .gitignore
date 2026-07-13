@@ -30,3 +30,8 @@ build/
 # External references and local experiment worktrees
 external/
 .worktrees/
+
+# 可重复下载的本地向量模型缓存
+legal_knowledge/models/
+legal_knowledge/index/*.sqlite3-wal
+legal_knowledge/index/*.sqlite3-shm

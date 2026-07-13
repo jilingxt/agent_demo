@@ -5,7 +5,7 @@ from case_agent_demo.models import Material, MaterialType
 
 
 class CaseWorkflowTests(unittest.TestCase):
-    def test_requires_human_case_type_before_execution(self):
+    def test_human_case_type_gate_is_available_only_in_explicit_strict_mode(self):
         workflow = CaseWorkflow.demo()
         materials = [
             Material(
@@ -19,7 +19,7 @@ class CaseWorkflowTests(unittest.TestCase):
 
         self.assertTrue(suggestion.requires_human_confirmation)
         with self.assertRaises(HumanConfirmationRequired):
-            workflow.run(materials)
+            workflow.run(materials, require_human_confirmation=True)
 
     def test_confirmed_run_records_material_plan_before_extraction(self):
         workflow = CaseWorkflow.demo()

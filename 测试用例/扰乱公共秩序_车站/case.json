@@ -1,0 +1,18 @@
+{
+  "case_id": "CASE-ORDER-001",
+  "case_type": "扰乱公共秩序类案件",
+  "materials": [
+    {"material_id": "ORDER-S-ACTOR", "material_type": "statement", "path": "statements/行为人笔录.txt"},
+    {"material_id": "ORDER-S-WITNESS", "material_type": "statement", "path": "statements/工作人员证言.txt"},
+    {"material_id": "ORDER-R-VIDEO", "material_type": "report_image", "path": "reports/现场视频研判.txt"},
+    {"material_id": "ORDER-R-OPERATION", "material_type": "report_image", "path": "reports/运营影响记录.txt"}
+  ],
+  "expected": {
+    "bayesian_models": ["public_order"],
+    "bayesian_run_count": 1,
+    "derived_min": {"order_disruption": 0.5},
+    "primary_claim": {"subject": "周强", "predicate": "public_order_conduct", "target": "", "min_sources": 4, "status": "supported"},
+    "must_include_articles": ["第二百九十一条", "第二十六条"],
+    "must_exclude_articles": ["第二百九十条", "第二百九十三条", "第二十八条", "第二十九条", "第三十条"]
+  }
+}

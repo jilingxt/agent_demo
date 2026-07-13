@@ -137,6 +137,34 @@ class EvidenceIntakeTests(unittest.TestCase):
 
             self.assertEqual(materials[0].content, "张三称20时在家。")
 
+    def test_assigns_source_roles_and_identification_category_from_vault_paths(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "evidence_vault"
+            ensure_evidence_vault(root)
+            (root / "statements" / "报警人陈某笔录.txt").write_text(
+                "报警人陈某称周某实施相关行为。", encoding="utf-8"
+            )
+            (root / "statements" / "证人王某证言.txt").write_text(
+                "证人王某称看见相关情况。", encoding="utf-8"
+            )
+            (root / "identification_images" / "照片辨认.jpg").write_bytes(b"image")
+
+            materials = EvidenceIntake(root).load_materials()
+            by_id = {item.material_id: item for item in materials}
+
+            self.assertEqual(
+                by_id["S-报警人陈某笔录"].metadata["declarant_role"],
+                "reporting_person",
+            )
+            self.assertEqual(
+                by_id["S-证人王某证言"].metadata["declarant_role"],
+                "witness",
+            )
+            self.assertEqual(
+                by_id["P-照片辨认"].metadata["evidence_category"],
+                "identification",
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -28,6 +28,7 @@ class Material:
     material_type: MaterialType
     content: str
     source_path: str = ""
+    metadata: dict = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -137,6 +138,11 @@ class EvidenceAssertion:
     source_group: str = ""
     origin_evidence: str = ""
     metadata: dict = field(default_factory=dict)
+    assertion_role: str = "context"
+    time: str = ""
+    location: str = ""
+    evidence_category: str = ""
+    declarant_role: str = ""
 
 
 @dataclass(frozen=True)
@@ -176,6 +182,101 @@ class ClaimAssessment:
     support_index: float = 0.0
     bayesian_posterior: float | None = None
     bayesian_model_version: str = ""
+
+
+@dataclass(frozen=True)
+class CaseTypeContext:
+    value: str = ""
+    status: str = "unknown"
+    source: str = "automatic"
+    candidates: list[str] = field(default_factory=list)
+    domains: list[str] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class ParticipantRecord:
+    name: str
+    roles: list[str] = field(default_factory=list)
+    assertion_ids: list[str] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class AllegationRecord:
+    allegation_id: str
+    reporter: str
+    alleged_actor: str
+    predicate: str
+    factual_summary: str
+    target_person: str = ""
+    object: str = ""
+    time: str = ""
+    location: str = ""
+    assertion_ids: list[str] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class EvidenceFinding:
+    claim_id: str
+    subject: str
+    predicate: str
+    status: str
+    target_person: str = ""
+    object: str = ""
+    time: str = ""
+    location: str = ""
+    supporting_node_ids: list[str] = field(default_factory=list)
+    opposing_node_ids: list[str] = field(default_factory=list)
+    ambiguous_node_ids: list[str] = field(default_factory=list)
+    support_index: float = 0.0
+    reasons: list[str] = field(default_factory=list)
+    conclusion: str = ""
+
+
+@dataclass(frozen=True)
+class ObjectiveCircumstance:
+    node_id: str
+    source_material_id: str
+    category: str
+    summary: str
+    time: str = ""
+    location: str = ""
+
+
+@dataclass(frozen=True)
+class IdentificationRecord:
+    node_id: str
+    source_material_id: str
+    identifier: str
+    identified_person: str
+    summary: str
+    time: str = ""
+    location: str = ""
+
+
+@dataclass(frozen=True)
+class LegalCandidate:
+    law_id: str
+    law_name: str
+    article: str
+    retrieval_purpose: str
+    candidate_basis: str = ""
+    matched_elements: list[str] = field(default_factory=list)
+    missing_elements: list[str] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class EvidenceBook:
+    participants: list[ParticipantRecord] = field(default_factory=list)
+    allegations: list[AllegationRecord] = field(default_factory=list)
+    fact_findings: list[EvidenceFinding] = field(default_factory=list)
+    objective_circumstances: list[ObjectiveCircumstance] = field(default_factory=list)
+    identifications: list[IdentificationRecord] = field(default_factory=list)
+    conflicts: list[str] = field(default_factory=list)
+    legal_candidates: list[LegalCandidate] = field(default_factory=list)
+    bayesian_runs: list[dict] = field(default_factory=list)
+    bayesian_abstentions: list[dict] = field(default_factory=list)
+    missing_evidence: list[str] = field(default_factory=list)
+    conclusion_boundary: str = ""
 
 
 @dataclass(frozen=True)
@@ -301,6 +402,7 @@ def infer_polarity(text: str) -> str:
     denial_phrases = (
         "没有", "否认", "不承认", "没打", "没拿", "没去",
         "未实施", "未到场", "未拿取", "未发现", "尚未",
+        "并未欺骗", "未欺骗", "并未虚构", "未虚构",
     )
     if any(phrase in text for phrase in denial_phrases):
         return "deny"
@@ -315,6 +417,10 @@ def infer_claim_type(behavior: str, obj: str = "") -> str:
 def infer_claim_types(behavior: str, obj: str = "") -> list[str]:
     text = f"{behavior} {obj}"
     rules = (
+        ("deceptive_representation", ("虚构", "隐瞒真相", "冒充", "谎称", "欺骗", "骗取", "诈骗")),
+        ("mistaken_belief", ("信以为真", "产生错误认识", "陷入错误认识", "误以为", "误信")),
+        ("property_disposition", ("转账", "汇款", "付款", "支付", "交付财物", "处分财产")),
+        ("property_loss", ("财产损失", "造成损失", "被骗金额", "未返还", "未归还")),
         ("alternative_cause", ("其他合理原因", "其他合理致伤原因", "其他致伤原因", "另有原因", "自行摔倒")),
         ("mechanism_compatible", ("机制吻合", "作用机制吻合", "形成机制一致")),
         ("temporal_proximity", ("时间接近", "立即出现", "紧接着出现")),
@@ -341,11 +447,39 @@ def infer_claim_types(behavior: str, obj: str = "") -> list[str]:
         ("taking_property", ("拿走", "窃取", "盗窃", "非法占有", "拿取", "偷走")),
         ("presence", ("现场", "出现", "在场", "不在", "在家")),
     )
-    result = [predicate for predicate, keywords in rules if any(word in text for word in keywords)]
+    result = []
+    if any(word in text for word in ("声称", "宣称", "陈述")) and any(
+        word in text for word in ("不存在", "与事实不符", "与登记记录不符")
+    ):
+        result.append("deceptive_representation")
+    result.extend(
+        predicate for predicate, keywords in rules if any(word in text for word in keywords)
+    )
     return list(dict.fromkeys(result)) or ["general"]
 
 
 def infer_predicate_stance(text: str, predicate: str) -> str:
+    if predicate == "deceptive_representation":
+        if any(
+            phrase in text
+            for phrase in (
+                "没有欺骗", "并未欺骗", "未欺骗",
+                "没有虚构", "并未虚构", "未虚构", "项目真实",
+            )
+        ):
+            return "deny"
+        if "是否" in text and not any(
+            phrase in text for phrase in ("不存在", "与事实不符", "与登记记录不符")
+        ):
+            return "uncertain"
+        if any(
+            phrase in text
+            for phrase in (
+                "虚构", "隐瞒真相", "谎称", "欺骗",
+                "不存在", "与事实不符", "与登记记录不符",
+            )
+        ):
+            return "affirm"
     if predicate == "alternative_cause" and any(
         phrase in text for phrase in ("排除", "不存在其他", "无其他合理", "未发现其他")
     ):
@@ -412,3 +546,6 @@ class WorkflowResult:
     bayesian_result: dict | None = None
     reasoning_trace: dict = field(default_factory=dict)
     model_versions: dict = field(default_factory=dict)
+    case_type_context: CaseTypeContext = field(default_factory=CaseTypeContext)
+    evidence_book: EvidenceBook | None = None
+    inferred_case_domains: list[str] = field(default_factory=list)

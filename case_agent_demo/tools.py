@@ -7,7 +7,7 @@ from typing import Any
 
 from langchain_core.runnables import RunnableLambda
 
-from case_agent_demo.models import EvidenceGraph, LegalMatch
+from case_agent_demo.models import EvidenceGraph, LegalChunk, LegalMatch, LegalRAGResult
 from case_agent_demo.legal_kb import LegalKnowledgeBaseTool
 
 
@@ -16,7 +16,7 @@ DEFAULT_LEGAL_LIBRARY = Path("legal_library") / "laws.jsonl"
 
 @dataclass
 class LegalRetrievalTool:
-    """Legal retrieval tool backed by a static JSONL law library."""
+    """Unified legal retrieval with hybrid-KB and static-library fallback."""
 
     name: str = "legal_retrieval_tool"
     library_path: str | Path | None = DEFAULT_LEGAL_LIBRARY
@@ -28,6 +28,9 @@ class LegalRetrievalTool:
         self.runnable = RunnableLambda(self.retrieve)
 
     def retrieve(self, payload: dict[str, Any]) -> list[LegalMatch]:
+        return self.retrieve_result(payload).matches
+
+    def retrieve_result(self, payload: dict[str, Any]) -> LegalRAGResult:
         case_type = payload.get("confirmed_case_type") or payload.get("case_type") or "unknown_case_type"
         graph: EvidenceGraph | None = payload.get("evidence_graph") or payload.get("case_graph")
         behaviors = payload.get("behaviors")
@@ -37,14 +40,59 @@ class LegalRetrievalTool:
         purpose = payload.get("purpose", "legal_basis_lookup")
 
         if self.legal_kb is not None and graph is not None:
-            result = self.legal_kb.retrieve_for_review(case_type, graph, purpose) if "review" in purpose else self.legal_kb.retrieve_for_case(case_type, graph)
-            if result.matches:
-                return result.matches
+            if purpose == "allegation_discovery":
+                result = self.legal_kb.retrieve_for_allegations(
+                    case_type,
+                    graph,
+                    assertions=payload.get("assertions"),
+                )
+            elif "review" in purpose or "procedure" in purpose:
+                result = self.legal_kb.retrieve_for_review(
+                    case_type,
+                    graph,
+                    str(payload.get("draft_report", "")),
+                    claim_assessments=payload.get("claim_assessments"),
+                )
+            else:
+                result = self.legal_kb.retrieve_for_case(
+                    case_type,
+                    graph,
+                    claim_assessments=payload.get("claim_assessments"),
+                )
+            if result.matches and result.chunks:
+                return result
 
         matches = self._retrieve_from_static_library(case_type, behavior_text, purpose)
-        if matches:
-            return matches
-        return [self._demo_match(case_type, behavior_text, purpose)]
+        if not matches:
+            return LegalRAGResult(
+                matches=[],
+                chunks=[],
+                query=f"{case_type} {behavior_text}".strip(),
+                purpose=purpose,
+                query_trace={
+                    "fallback": "static_law_library",
+                    "retrieval_miss": True,
+                },
+            )
+        chunks = [
+            LegalChunk(
+                chunk_id=match.law_id,
+                document_id=f"static:{match.law_name}",
+                text=match.legal_element,
+                title=match.law_name,
+                article=match.article,
+                doc_type="static_law_library",
+                metadata={"source": match.source, "fallback": True},
+            )
+            for match in matches
+        ]
+        return LegalRAGResult(
+            matches=matches,
+            chunks=chunks,
+            query=f"{case_type} {behavior_text}".strip(),
+            purpose=purpose,
+            query_trace={"fallback": "static_law_library"},
+        )
 
     def _retrieve_from_static_library(self, case_type: str, behavior_text: str, purpose: str) -> list[LegalMatch]:
         if self.library_path is None or not self.library_path.exists():
@@ -62,17 +110,6 @@ class LegalRetrievalTool:
             _law_to_match(law, case_type, behavior_text, purpose)
             for _, _, law in scored[: self.max_matches]
         ]
-
-    def _demo_match(self, case_type: str, behavior_text: str, purpose: str) -> LegalMatch:
-        return LegalMatch(
-            law_id="L-DEMO-1",
-            law_name="中华人民共和国刑法",
-            article="第二百六十四条（demo 预置）",
-            legal_element="以非法占有为目的，秘密窃取公私财物等构成要件需结合证据审查。",
-            matched_behavior=f"{case_type} / {behavior_text}",
-            source=f"legal_retrieval_tool:{purpose}:demo_preloaded_rules",
-        )
-
 
 @dataclass
 class RagLegalAgent:

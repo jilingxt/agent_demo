@@ -4,13 +4,25 @@ version = "0.56.0"
 description = "Multi-agent case evidence analysis with evidence graphs and registry-driven Bayesian fact inference."
 requires-python = ">=3.11"
 dependencies = [
-  "langchain-core>=0.3.0"
+  "langchain-core>=0.3.0",
+  "numpy>=1.26,<3"
 ]
 
 [project.optional-dependencies]
 docs = [
   "openpyxl>=3.1,<4"
 ]
+rag = [
+  "fastembed>=0.7,<1",
+  "pypdf>=5,<7"
+]
+
+[project.scripts]
+case-legal-kb = "case_agent_demo.legal_kb_cli:main"
 
 [tool.setuptools.packages.find]
 include = ["case_agent_demo*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+norecursedirs = ["external", "plugins", "legal_knowledge", "workflow-runs"]

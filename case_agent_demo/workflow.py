@@ -17,11 +17,13 @@ from case_agent_demo.agents import (
 from case_agent_demo.confidence import ClaimBuilder, ConfidenceEngine
 from case_agent_demo.config import ModelProfiles
 from case_agent_demo.evidence_reasoning_engine import EvidenceReasoningEngine
+from case_agent_demo.evidence_book import EvidenceBookBuilder
 from case_agent_demo.final_conflict_agent import FinalConflictAgent, issues_to_challenges
 from case_agent_demo.graph_store import GraphStoreTool
 from case_agent_demo.legal_kb import LegalKnowledgeBaseTool
 from case_agent_demo.models import (
     CaseGraph,
+    CaseTypeContext,
     CaseTypeSuggestion,
     Fact,
     Material,
@@ -51,6 +53,7 @@ class CaseWorkflow:
     claim_builder: ClaimBuilder = field(default_factory=ClaimBuilder)
     confidence_engine: ConfidenceEngine = field(default_factory=ConfidenceEngine)
     evidence_reasoning_engine: EvidenceReasoningEngine = field(default_factory=EvidenceReasoningEngine)
+    evidence_book_builder: EvidenceBookBuilder = field(default_factory=EvidenceBookBuilder)
     final_conflict_agent: FinalConflictAgent = field(default_factory=FinalConflictAgent)
     reasoning_agent: ReasoningAgent = field(default_factory=ReasoningAgent)
     judge_agent: JudgeAgent = field(default_factory=JudgeAgent)
@@ -76,9 +79,11 @@ class CaseWorkflow:
         materials: list[Material],
         confirmed_case_type: str | None = None,
         authority_verifications: Sequence[Mapping] | Mapping[str, Mapping] | None = None,
+        require_human_confirmation: bool = False,
     ) -> WorkflowResult:
-        if not confirmed_case_type:
+        if require_human_confirmation and not confirmed_case_type:
             raise HumanConfirmationRequired("人工确认案件定性后，才能开始 agent 规划和执行。")
+        case_type_hint = (confirmed_case_type or "").strip()
 
         material_plan = self.planning_agent.plan_materials(materials)
         graph_store = GraphStoreTool()
@@ -121,7 +126,7 @@ class CaseWorkflow:
 
         raw_graph = graph_store.to_graph()
         reasoning_result = self.evidence_reasoning_engine.evaluate(
-            case_type=confirmed_case_type,
+            case_type=case_type_hint,
             evidence_graph=raw_graph,
             authority_verifications=authority_verifications,
         )
@@ -135,15 +140,57 @@ class CaseWorkflow:
         conflicts = self.conflict_agent.runnable.invoke(case_graph)
         executed_agents.append("conflict_agent")
 
+        allegation_rag_result = self.legal_tool.retrieve_result(
+            {
+                "confirmed_case_type": case_type_hint,
+                "evidence_graph": case_graph,
+                "assertions": reasoning_result.assertions,
+                "purpose": "allegation_discovery",
+            }
+        )
+        executed_agents.append("legal_candidate_discovery")
+
         legal_matches = self.reasoning_agent.retrieve_legal_matches(
-            {"confirmed_case_type": confirmed_case_type, "evidence_graph": case_graph}
+            {
+                "confirmed_case_type": case_type_hint,
+                "evidence_graph": case_graph,
+                "claim_assessments": reasoning_result.claim_assessments,
+            }
         )
         executed_agents.append("legal_retrieval_tool")
 
+        inferred_domains = list(reasoning_result.reasoning_trace.get("case_domains", []))
+        case_type_context = CaseTypeContext(
+            value=case_type_hint,
+            status=(
+                "confirmed"
+                if case_type_hint
+                else ("provisional" if inferred_domains else "unknown")
+            ),
+            source="legacy_api" if case_type_hint else "automatic",
+            candidates=[
+                f"{item.law_name}{item.article}"
+                for item in allegation_rag_result.matches[:5]
+            ],
+            domains=inferred_domains,
+        )
+        evidence_book = self.evidence_book_builder.build(
+            case_graph,
+            reasoning_result.assertions,
+            reasoning_result.claim_assessments,
+            legal_matches=_unique_legal_matches(
+                [*allegation_rag_result.matches, *legal_matches]
+            ),
+            legal_purpose="candidate_discovery",
+            bayesian_result=reasoning_result.bayesian_result,
+        )
+
         draft_report = self.reasoning_agent.runnable.invoke(
             {
-                "confirmed_case_type": confirmed_case_type,
+                "confirmed_case_type": case_type_hint,
+                "case_type_context": case_type_context,
                 "evidence_graph": case_graph,
+                "evidence_book": evidence_book,
                 "legal_matches": legal_matches,
                 "conflicts": conflicts,
                 "claim_assessments": reasoning_result.claim_assessments,
@@ -163,9 +210,17 @@ class CaseWorkflow:
             }
         )
         executed_agents.append("judge_agent")
-        legal_rag_result = self.legal_kb.retrieve_for_review(confirmed_case_type, case_graph, draft_report)
+        legal_rag_result = self.legal_tool.retrieve_result(
+            {
+                "confirmed_case_type": case_type_hint,
+                "evidence_graph": case_graph,
+                "claim_assessments": reasoning_result.claim_assessments,
+                "draft_report": draft_report,
+                "purpose": "final_compliance_review",
+            }
+        )
         validation_issues = self.final_conflict_agent.review(
-            confirmed_case_type,
+            case_type_hint,
             case_graph,
             draft_report,
             legal_rag_result,
@@ -189,7 +244,7 @@ class CaseWorkflow:
         executed_agents.append("review_agent")
 
         return WorkflowResult(
-            confirmed_case_type=confirmed_case_type,
+            confirmed_case_type=case_type_hint,
             executed_agents=executed_agents,
             case_graph=case_graph,
             legal_matches=legal_matches,
@@ -207,9 +262,24 @@ class CaseWorkflow:
             bayesian_result=reasoning_result.bayesian_result,
             reasoning_trace=reasoning_result.reasoning_trace,
             model_versions=reasoning_result.model_versions,
+            case_type_context=case_type_context,
+            evidence_book=evidence_book,
+            inferred_case_domains=inferred_domains,
         )
 
 
 def _task_has_source_paths(task: object) -> bool:
     source_paths = getattr(task, "source_paths", [])
     return bool(source_paths) and all(str(path).strip() for path in source_paths)
+
+
+def _unique_legal_matches(matches):
+    result = []
+    seen = set()
+    for item in matches:
+        key = (item.law_name, item.article)
+        if key in seen:
+            continue
+        seen.add(key)
+        result.append(item)
+    return result

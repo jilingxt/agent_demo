@@ -90,6 +90,26 @@ class FinalConflictAgentTests(unittest.TestCase):
         self.assertIn("contested_but_not_refuted", issue_types)
         self.assertIn("causation_insufficient", issue_types)
 
+    def test_unconsumed_auxiliary_claim_still_reports_insufficiency(self):
+        claim = EvidenceClaim("C-RESULT", "李四", "injury_exists", target_person="李四")
+        assessment = ClaimAssessment(
+            claim_id=claim.claim_id,
+            status="insufficient",
+            opinion=ClaimOpinion(claim.claim_id, support=0.2, uncertainty=0.8),
+        )
+        rag = LegalRAGResult(matches=["law"], chunks=["chunk"], query="", purpose="review")
+
+        issues = FinalConflictAgent().review(
+            "人身权益案件",
+            CaseGraph(claims=[claim]),
+            "",
+            rag,
+            claim_assessments=[assessment],
+            bayesian_result={"runs": []},
+        )
+
+        self.assertTrue(any(issue.issue_type == "evidence_insufficiency" for issue in issues))
+
 
 if __name__ == "__main__":
     unittest.main()
