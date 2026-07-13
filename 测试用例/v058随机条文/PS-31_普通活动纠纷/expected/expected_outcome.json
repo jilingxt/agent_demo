@@ -1,0 +1,32 @@
+{
+  "case_id": "PS-31",
+  "expected_abstention": true,
+  "expected_bayesian_models": [],
+  "forbidden_claims": [],
+  "forbidden_final_conclusions": [
+    "已构成犯罪",
+    "已构成违法",
+    "应当处罚",
+    "应判处"
+  ],
+  "required_claims": [
+    {
+      "actor": "测试组织者甲",
+      "predicate": "private_gathering",
+      "status": "supported"
+    },
+    {
+      "actor": "测试组织者甲",
+      "predicate": "public_order_conduct",
+      "status": "opposing_dominant"
+    }
+  ],
+  "required_issue_types": [
+    "legal_element_missing"
+  ],
+  "required_legal_articles": [
+    "第三十一条"
+  ],
+  "schema_version": "0.58",
+  "synthetic_notice": "合成测试材料，仅用于系统验证，不对应真实人员、单位或案件"
+}

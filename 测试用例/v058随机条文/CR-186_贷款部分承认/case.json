@@ -1,0 +1,37 @@
+{
+  "article": "第一百八十六条",
+  "authority_verifications": [],
+  "case_id": "CR-186",
+  "case_type": "贷款审批规范核查",
+  "complexity_type": "partial_admission",
+  "law_key": "criminal_law",
+  "law_title": "中华人民共和国刑法",
+  "materials": [
+    {
+      "material_id": "M-CR-186-S1",
+      "material_type": "statement",
+      "path": "statements/业务复核人员笔录.docx",
+      "role": "reporting_party",
+      "title": "业务复核人员询问笔录"
+    },
+    {
+      "material_id": "M-CR-186-S2",
+      "material_type": "statement",
+      "path": "statements/测试审批员甲笔录.docx",
+      "role": "alleged_actor",
+      "title": "审批人员询问笔录"
+    },
+    {
+      "material_id": "M-CR-186-R1",
+      "material_type": "report_image",
+      "path": "reports/贷款与资金核查报告.docx",
+      "role": "synthetic_report",
+      "title": "贷款与资金核查报告"
+    }
+  ],
+  "provision_text": "第一百八十六条 银行或者其他金融机构的工作人员违反国家规定发放贷款，数额巨大或者造\n成重大损失的，处五年以下有期徒刑或者拘役，并处一万元以上十万元以下罚金；数额特别巨大\n或者造成特别重大损失的，处五年以上有期徒刑，并处二万元以上二十万元以下罚金。\n银行或者其他金融机构的工作人员违反国家规定，向关系人发放贷款的，依照前款的规定从\n重处罚。\n单位犯前两款罪的，对单位判处罚金，并对其直接负责的主管人员和其他直接责任人员，依\n照前两款的规定处罚。\n关系人的范围，依照《中华人民共和国商业银行法》和有关金融法规确定。",
+  "schema_version": "0.58",
+  "short_name": "贷款部分承认",
+  "summary": "审批行为被承认，但关联关系、违反规则、数额和损失需分别证明。",
+  "synthetic_notice": "合成测试材料，仅用于系统验证，不对应真实人员、单位或案件"
+}

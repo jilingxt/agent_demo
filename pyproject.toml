@@ -12,6 +12,10 @@ dependencies = [
 docs = [
   "openpyxl>=3.1,<4"
 ]
+casegen = [
+  "python-docx>=1.1,<2",
+  "Pillow>=10,<13"
+]
 rag = [
   "fastembed>=0.7,<1",
   "pypdf>=5,<7"

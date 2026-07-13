@@ -1,0 +1,37 @@
+{
+  "article": "第四百二十九条",
+  "authority_verifications": [],
+  "case_id": "CR-429",
+  "case_type": "特定义务场景核查",
+  "complexity_type": "non_offense_context",
+  "law_key": "criminal_law",
+  "law_title": "中华人民共和国刑法",
+  "materials": [
+    {
+      "material_id": "M-CR-429-S1",
+      "material_type": "statement",
+      "path": "statements/训练参与人员笔录.docx",
+      "role": "reporting_party",
+      "title": "训练参与人员询问笔录"
+    },
+    {
+      "material_id": "M-CR-429-S2",
+      "material_type": "statement",
+      "path": "statements/测试队员甲笔录.docx",
+      "role": "alleged_actor",
+      "title": "相关人员询问笔录"
+    },
+    {
+      "material_id": "M-CR-429-R1",
+      "material_type": "report_image",
+      "path": "reports/训练设备核查报告.docx",
+      "role": "synthetic_report",
+      "title": "训练设备核查报告"
+    }
+  ],
+  "provision_text": "第四百二十九条 在战场上明知友邻部队处境危急请求救援，能救援而不救援，致使友邻部队\n遭受重大损失的，对指挥人员，处五年以下有期徒刑。",
+  "schema_version": "0.58",
+  "short_name": "训练救助争议",
+  "summary": "事件发生于训练环境，且设备故障影响救助能力，不能把未完成救助直接等同于战场拒不救援。",
+  "synthetic_notice": "合成测试材料，仅用于系统验证，不对应真实人员、单位或案件"
+}

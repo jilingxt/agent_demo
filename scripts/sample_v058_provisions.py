@@ -4,8 +4,12 @@ import argparse
 import json
 import random
 import sqlite3
+import sys
 from pathlib import Path
 from typing import Any
+
+if __package__ in {None, ""}:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from scripts.v058_case_catalog import PROVISION_POOLS, PROVISION_REJECTIONS, ProvisionPool
 

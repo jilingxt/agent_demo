@@ -1,0 +1,20 @@
+{
+  "law_key": "public_security_law",
+  "pool_size": 64,
+  "schema_version": "1.0",
+  "seed": 58,
+  "selected_provision": {
+    "article": "第八十三条",
+    "chapter": "第三章 违反治安管理的行为和处罚",
+    "chunk_id": "C-D-cd15f4f1ac12-3e16aae452",
+    "document_hash": "cee8d240af947be003fbf177db9129d930bd13757c77d6b45e9a9aedc2faa58a",
+    "document_id": "D-cd15f4f1ac12",
+    "part": "",
+    "section": "第四节 妨害社会管理的行为和处罚",
+    "source_page_end": 14,
+    "source_page_start": 14,
+    "text": "第八十三条 有下列行为之一的，处十日以上十五日以下拘留，可以并处五千元以下罚款；情\n节较轻的，处五日以下拘留或者一千元以下罚款：\n（一）非法种植罂粟不满五百株或者其他少量毒品原植物的；\n（二）非法买卖、运输、携带、持有少量未经灭活的罂粟等毒品原植物种子或者幼苗的；\n（三）非法运输、买卖、储存、使用少量罂粟壳的。\n有前款第一项行为，在成熟前自行铲除的，不予处罚。",
+    "title": "中华人民共和国治安管理处罚法"
+  },
+  "synthetic_notice": "合成测试材料，仅用于系统验证，不对应真实人员、单位或案件"
+}

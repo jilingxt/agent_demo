@@ -1,0 +1,33 @@
+{
+  "case_id": "PS-51",
+  "expected_abstention": false,
+  "expected_bayesian_models": [
+    "conduct_result"
+  ],
+  "forbidden_claims": [],
+  "forbidden_final_conclusions": [
+    "已构成犯罪",
+    "已构成违法",
+    "应当处罚",
+    "应判处"
+  ],
+  "required_claims": [
+    {
+      "actor": "测试人员丙",
+      "predicate": "violence",
+      "status": "supported",
+      "target_person": "测试人员丁"
+    },
+    {
+      "actor": "测试人员丁",
+      "predicate": "injury_exists",
+      "status": "supported"
+    }
+  ],
+  "required_issue_types": [],
+  "required_legal_articles": [
+    "第五十一条"
+  ],
+  "schema_version": "0.58",
+  "synthetic_notice": "合成测试材料，仅用于系统验证，不对应真实人员、单位或案件"
+}

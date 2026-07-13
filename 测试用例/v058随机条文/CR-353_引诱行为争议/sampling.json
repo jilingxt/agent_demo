@@ -1,0 +1,20 @@
+{
+  "law_key": "criminal_law",
+  "pool_size": 402,
+  "schema_version": "1.0",
+  "seed": 58,
+  "selected_provision": {
+    "article": "第三百五十三条",
+    "chapter": "第六章 妨害社会管理秩序罪",
+    "chunk_id": "C-D-6024525a467e-d6cf9a2f4e",
+    "document_hash": "74ec867761610dccaca1d380f6dad0f2de80ea8821a86854d40bbf2564ba63a4",
+    "document_id": "D-6024525a467e",
+    "part": "第二编 分则",
+    "section": "第七节 走私、贩卖、运输、制造毒品罪",
+    "source_page_end": 58,
+    "source_page_start": 58,
+    "text": "第三百五十三条 引诱、教唆、欺骗他人吸食、注射毒品的，处三年以下有期徒刑、拘役或者\n管制，并处罚金；情节严重的，处三年以上七年以下有期徒刑，并处罚金。\n强迫他人吸食、注射毒品的，处三年以上十年以下有期徒刑，并处罚金。\n引诱、教唆、欺骗或者强迫未成年人吸食、注射毒品的，从重处罚。",
+    "title": "中华人民共和国刑法"
+  },
+  "synthetic_notice": "合成测试材料，仅用于系统验证，不对应真实人员、单位或案件"
+}
