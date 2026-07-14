@@ -8,6 +8,7 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
+from case_agent_demo.evidence_intake import _extract_docx_text
 from case_agent_demo.models import Material, MaterialType, WorkflowResult
 from case_agent_demo.workflow import CaseWorkflow
 
@@ -19,15 +20,22 @@ def discover_cases(root: str | Path) -> list[Path]:
 def load_case(case_dir: str | Path) -> tuple[dict[str, Any], list[Material]]:
     case_path = Path(case_dir)
     config = json.loads((case_path / "case.json").read_text(encoding="utf-8"))
-    materials = [
-        Material(
-            material_id=str(item["material_id"]),
-            material_type=MaterialType(str(item["material_type"])),
-            content=(case_path / str(item["path"])).read_text(encoding="utf-8"),
-            source_path=str((case_path / str(item["path"])).resolve()),
+    materials = []
+    for item in config["materials"]:
+        source_path = case_path / str(item["path"])
+        content = (
+            _extract_docx_text(source_path)
+            if source_path.suffix.casefold() == ".docx"
+            else source_path.read_text(encoding="utf-8")
         )
-        for item in config["materials"]
-    ]
+        materials.append(
+            Material(
+                material_id=str(item["material_id"]),
+                material_type=MaterialType(str(item["material_type"])),
+                content=content,
+                source_path=str(source_path.resolve()),
+            )
+        )
     return config, materials
 
 

@@ -137,7 +137,7 @@ class EvidenceIntakeTests(unittest.TestCase):
 
             self.assertEqual(materials[0].content, "张三称20时在家。")
 
-    def test_assigns_source_roles_and_identification_category_from_vault_paths(self):
+    def test_does_not_infer_source_roles_from_filenames_or_content(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp) / "evidence_vault"
             ensure_evidence_vault(root)
@@ -154,16 +154,28 @@ class EvidenceIntakeTests(unittest.TestCase):
 
             self.assertEqual(
                 by_id["S-报警人陈某笔录"].metadata["declarant_role"],
-                "reporting_person",
+                "",
             )
             self.assertEqual(
                 by_id["S-证人王某证言"].metadata["declarant_role"],
-                "witness",
+                "",
             )
             self.assertEqual(
                 by_id["P-照片辨认"].metadata["evidence_category"],
                 "identification",
             )
+
+    def test_does_not_infer_report_category_from_report_text(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "evidence_vault"
+            ensure_evidence_vault(root)
+            (root / "report_images" / "材料.txt").write_text(
+                "文本包含法医、监控、银行流水等词语。", encoding="utf-8"
+            )
+
+            materials = EvidenceIntake(root).load_materials()
+
+            self.assertEqual(materials[0].metadata["evidence_category"], "report_material")
 
 
 if __name__ == "__main__":

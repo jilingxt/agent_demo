@@ -7,6 +7,7 @@ from case_agent_demo.evidence_reasoning_engine import EvidenceReasoningEngine
 from case_agent_demo.graph_store import GraphStoreTool
 from case_agent_demo.models import Material, MaterialType
 from case_agent_demo.agents import EvidenceGraphAgent
+from tests.semantic_runtime import SemanticFixtureRuntime, semantic_fact
 
 
 VICTIM_STATEMENT = """
@@ -42,8 +43,23 @@ def _reasoning_result():
     ]
     store = GraphStoreTool()
     graph_agent = EvidenceGraphAgent()
+    runtime = SemanticFixtureRuntime(
+        {
+            "S-VICTIM": [semantic_fact(actor="李文杰", target_person="贺显作", predicate="violence", behavior="李文杰对贺显作实施暴力行为", declarant="贺显作", event_id="CASE-INJURY-001", fact_id="F-S-VICTIM-TEXT")],
+            "S-ACTOR": [semantic_fact(actor="李文杰", target_person="贺显作", predicate="violence", behavior="李文杰陈述其对贺显作实施暴力行为", declarant="李文杰", event_id="CASE-INJURY-001", fact_id="F-S-ACTOR-TEXT")],
+            "R-VIDEO": [
+                semantic_fact(actor="李文杰", target_person="贺显作", predicate="violence", behavior="视频记录李文杰对贺显作实施暴力行为", event_id="CASE-INJURY-001", fact_id="F-R-VIDEO-REPORT", evidence_category="report_image"),
+                semantic_fact(actor="李文杰", target_person="贺显作", predicate="temporal_consistency", behavior="行为与结果在时间上相邻", event_id="CASE-INJURY-001", evidence_category="report_image"),
+            ],
+            "R-FORENSIC": [
+                semantic_fact(actor="贺显作", target_person="贺显作", predicate="injury_grade", behavior="贺显作的损伤被评定为轻伤二级", event_id="CASE-INJURY-001", evidence_category="report_image"),
+                semantic_fact(actor="贺显作", target_person="贺显作", predicate="injury_exists", behavior="贺显作存在损伤", event_id="CASE-INJURY-001", evidence_category="report_image"),
+                semantic_fact(actor="李文杰", target_person="贺显作", predicate="mechanism_consistency", behavior="行为方式与损伤机制相符", event_id="CASE-INJURY-001", evidence_category="report_image"),
+            ],
+        }
+    )
     for material in materials:
-        agent = TextAgent() if material.material_type == MaterialType.STATEMENT else ReportImageAgent()
+        agent = TextAgent(runtime=runtime) if material.material_type == MaterialType.STATEMENT else ReportImageAgent(runtime=runtime)
         for fact in agent.extract(material):
             graph_agent.add_fact(store, fact)
     verification = {

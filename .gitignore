@@ -35,3 +35,9 @@ external/
 legal_knowledge/models/
 legal_knowledge/index/*.sqlite3-wal
 legal_knowledge/index/*.sqlite3-shm
+
+# 本地模型验收输出（可能包含原始模型响应）
+artifacts/v058-live-agent/
+
+# 本地参考图片可能包含真实人员或机构信息，不进入发布版本
+测试用例/伤害/baogao/

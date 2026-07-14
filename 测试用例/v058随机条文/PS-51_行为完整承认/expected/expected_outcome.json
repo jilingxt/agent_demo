@@ -21,7 +21,7 @@
     {
       "actor": "测试人员丁",
       "predicate": "injury_exists",
-      "status": "supported"
+      "status": "insufficient"
     }
   ],
   "required_issue_types": [],

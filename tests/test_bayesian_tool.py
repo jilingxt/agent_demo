@@ -120,6 +120,15 @@ def test_registry_selects_all_matching_models_without_case_priority(tmp_path):
     assert {item.priority for item in selected} == {0}
 
 
+def test_auxiliary_predicate_alone_does_not_select_a_model():
+    selected = BayesianModelRegistry().select(
+        [],
+        [EvidenceClaim("C-ALT", "测试人员", "alternative_explanation")],
+    )
+
+    assert selected == []
+
+
 def test_tool_runs_multiple_models_and_returns_audit_trace(tmp_path):
     _write_model(tmp_path, "property_taking", "taking_action", "taking_supported")
     registry_path = tmp_path / "registry.json"

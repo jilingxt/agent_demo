@@ -6,10 +6,12 @@ from zipfile import ZipFile
 
 from case_agent_demo.models import Material, MaterialType
 from case_agent_demo.workflow import CaseWorkflow
+from tests.semantic_runtime import SemanticFixtureRuntime, semantic_fact
 
 
 ROOT = Path(__file__).resolve().parents[1]
 CASE_ROOT = ROOT / "测试用例"
+REFERENCE_ROOT = CASE_ROOT / "伤害"
 
 
 def _docx_text(path: Path) -> str:
@@ -27,9 +29,9 @@ def test_original_docx_materials_no_longer_report_primary_evidence_insufficiency
         CASE_ROOT / "故意伤害_多源印证" / "reports" / "法医鉴定意见.txt"
     ).read_text(encoding="utf-8").replace("事件编号：CASE-INJURY-001。", "")
     materials = [
-        Material("S-HE", MaterialType.STATEMENT, _docx_text(CASE_ROOT / "test_he.docx")),
-        Material("S-LI", MaterialType.STATEMENT, _docx_text(CASE_ROOT / "test_li.docx")),
-        Material("R-VIDEO", MaterialType.REPORT_IMAGE, _docx_text(CASE_ROOT / "video_report.docx")),
+        Material("S-HE", MaterialType.STATEMENT, _docx_text(REFERENCE_ROOT / "test_he.docx")),
+        Material("S-LI", MaterialType.STATEMENT, _docx_text(REFERENCE_ROOT / "test_li.docx")),
+        Material("R-VIDEO", MaterialType.REPORT_IMAGE, _docx_text(REFERENCE_ROOT / "video_report.docx")),
         Material("R-FORENSIC", MaterialType.REPORT_IMAGE, forensic),
     ]
     verification = {
@@ -47,7 +49,25 @@ def test_original_docx_materials_no_longer_report_primary_evidence_insufficiency
         }
     }
 
-    result = CaseWorkflow.demo().run(
+    runtime = SemanticFixtureRuntime(
+        {
+            "S-HE": [semantic_fact(actor="李文杰", target_person="贺显作", predicate="violence", behavior="李文杰对贺显作实施暴力行为", declarant="贺显作", event_id="CASE-INJURY-001")],
+            "S-LI": [semantic_fact(actor="李文杰", target_person="贺显作", predicate="violence", behavior="李文杰陈述其实施暴力行为", declarant="李文杰", event_id="CASE-INJURY-001")],
+            "R-VIDEO": [
+                semantic_fact(actor="李文杰", target_person="贺显作", predicate="violence", behavior="视频记录相关暴力行为", event_id="CASE-INJURY-001", evidence_category="report_image"),
+                semantic_fact(actor="李文杰", target_person="贺显作", predicate="temporal_consistency", behavior="行为与结果时间相邻", event_id="CASE-INJURY-001", evidence_category="report_image"),
+            ],
+            "R-FORENSIC": [
+                semantic_fact(actor="贺显作", target_person="贺显作", predicate="injury_grade", behavior="损伤被评定为轻伤二级", event_id="CASE-INJURY-001", evidence_category="report_image"),
+                semantic_fact(actor="李文杰", target_person="贺显作", predicate="mechanism_consistency", behavior="行为方式与损伤机制相符", event_id="CASE-INJURY-001", evidence_category="report_image"),
+            ],
+        }
+    )
+    workflow = CaseWorkflow.demo()
+    workflow.text_agent.runtime = runtime
+    workflow.report_image_agent.runtime = runtime
+
+    result = workflow.run(
         materials,
         "故意伤害类案件",
         authority_verifications=verification,

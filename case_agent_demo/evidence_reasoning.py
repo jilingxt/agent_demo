@@ -13,9 +13,7 @@ from case_agent_demo.models import (
     EvidenceAssertion,
     EvidenceClaim,
     EvidenceGraph,
-    infer_claim_type,
-    infer_claim_types,
-    infer_predicate_stance,
+    UNRESOLVED_PREDICATE,
 )
 
 
@@ -149,14 +147,19 @@ class EvidenceQualityEvaluator:
 
 class SubjectiveEvidenceEngine:
     _BASE_RATE_EVIDENCE = 2.0
+    _DEFAULT_EVIDENCE_SCALE = 2.0
 
     def __init__(
         self,
         quality_evaluator: EvidenceQualityEvaluator | None = None,
         authority_validator: AuthorityValidator | None = None,
+        evidence_scale: float = _DEFAULT_EVIDENCE_SCALE,
     ):
+        if evidence_scale <= 0:
+            raise ValueError("evidence_scale must be positive")
         self.quality_evaluator = quality_evaluator or EvidenceQualityEvaluator()
         self.authority_validator = authority_validator or AuthorityValidator()
+        self.evidence_scale = float(evidence_scale)
 
     def evaluate(self, claim: EvidenceClaim, assertions: list[EvidenceAssertion]) -> ClaimAssessment:
         authority_assessments = [(assertion, self.authority_validator.validate(assertion)) for assertion in assertions]
@@ -256,7 +259,10 @@ class SubjectiveEvidenceEngine:
         for assertion in assertions:
             if _normalize_stance(assertion.stance) != stance:
                 continue
-            strength = self.quality_evaluator.evaluate(assertion, claim)
+            strength = self.evidence_scale * self.quality_evaluator.evaluate(
+                assertion,
+                claim,
+            )
             origin = assertion.origin_evidence or assertion.source_group or assertion.assertion_id
             previous = strongest_by_origin.get(origin)
             if previous is None or strength > previous[1]:
@@ -291,10 +297,7 @@ class AssertionNormalizer:
                     )
                 continue
             explicit = node.metadata.get("predicate")
-            predicates = [str(explicit)] if explicit else infer_claim_types(
-                node.behavior or node.summary,
-                node.object,
-            )
+            predicates = [str(explicit)] if explicit else [UNRESOLVED_PREDICATE]
             assertions.extend(self.normalize_node(node, predicate) for predicate in predicates)
         return assertions
 
@@ -314,13 +317,10 @@ class AssertionNormalizer:
             "source_material_id": node.source_material_id,
         }
         actor = metadata.get("actor", node.person)
-        predicate = predicate or metadata.get("predicate") or infer_claim_type(
-            node.behavior or node.summary,
-            node.object,
-        )
+        predicate = predicate or metadata.get("predicate") or UNRESOLVED_PREDICATE
         stance_value = metadata.get("stance")
         if stance_value is None:
-            stance_value = infer_predicate_stance(node.behavior or node.summary, predicate)
+            stance_value = "ambiguous"
         stance = _normalize_stance(stance_value)
         target_person = metadata.get("target_person", metadata.get("target", ""))
         origin_evidence = metadata.get("origin_evidence", node.raw_ref or node.source_material_id)
@@ -391,6 +391,13 @@ class AssertionNormalizer:
                     assertion_ids=[*claim.assertion_ids, assertion.assertion_id],
                     metadata={
                         **claim.metadata,
+                        "element_roles": sorted(
+                            set(claim.metadata.get("element_roles", []))
+                            | {
+                                str(assertion.metadata.get("element_role", "")).strip()
+                            }
+                            - {""}
+                        ),
                         "assertion_roles": sorted(
                             set(claim.metadata.get("assertion_roles", []))
                             | {assertion.assertion_role}

@@ -15,6 +15,7 @@ from scripts.v058_case_catalog import PROVISION_POOLS, PROVISION_REJECTIONS, Pro
 
 
 DEFAULT_DATABASE = Path("legal_knowledge/index/legal_kb.sqlite3")
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 
 def sample_provisions(
@@ -88,12 +89,20 @@ def sample_provisions(
         "schema_version": "1.0",
         "seed": seed,
         "count_per_law": count_per_law,
-        "database": database_path.as_posix(),
+        "database": _manifest_database_path(database_path),
         "pool_sizes": pool_sizes,
         "accepted": accepted,
         "rejected": rejected,
         "draw_trace": draw_trace,
     }
+
+
+def _manifest_database_path(database_path: Path) -> str:
+    resolved = database_path.resolve()
+    try:
+        return resolved.relative_to(PROJECT_ROOT).as_posix()
+    except ValueError:
+        return database_path.as_posix()
 
 
 def _draw_until_enough(

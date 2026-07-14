@@ -16,8 +16,8 @@ class RelationRuleToolTests(unittest.TestCase):
         self.assertIn("same_object", edge_types)
 
     def test_denial_against_affirming_fact_generates_contradiction(self):
-        old = fact_to_node(Fact("F1", "S1", "statement", "张三", "张三称没有拿手机", object="手机"))
-        new = fact_to_node(Fact("F2", "P1", "evidence_image", "张三", "监控显示张三拿走手机", object="手机"))
+        old = fact_to_node(Fact("F1", "S1", "statement", "张三", "否认该行为", object="手机", metadata={"predicate": "taking_property", "stance": "deny"}))
+        new = fact_to_node(Fact("F2", "P1", "evidence_image", "张三", "记录该行为", object="手机", metadata={"predicate": "taking_property", "stance": "affirm"}))
 
         edges = RelationRuleTool().infer_edges_for_new_node(new, [old])
 

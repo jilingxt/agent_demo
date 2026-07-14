@@ -238,7 +238,9 @@ class LegalKnowledgeBaseTool:
 
         scored: list[LegalChunk] = []
         score_trace: dict[str, dict[str, float]] = {}
-        for chunk_id in fts_ids | dense_ids:
+        # The local corpus is small enough to rerank every active provision. Candidate
+        # sets remain useful diagnostics, but must not silently drop a relevant article.
+        for chunk_id in active:
             chunk = active.get(chunk_id)
             if chunk is None:
                 continue
@@ -1069,6 +1071,17 @@ def _query_from_graph(
         "causation": "行为与结果因果关系",
     }
     parts = [case_type]
+    for node in graph.nodes:
+        if node.status != "active" or node.metadata.get("semantic_status") == "unresolved":
+            continue
+        stance = str(node.metadata.get("stance", node.polarity)).strip().casefold()
+        if stance == "deny":
+            continue
+        legal_terms = node.metadata.get("legal_query_terms", [])
+        if isinstance(legal_terms, str):
+            legal_terms = [legal_terms]
+        if isinstance(legal_terms, (list, tuple)):
+            parts.extend(str(item).strip() for item in legal_terms if str(item).strip())
     seen_predicates: set[str] = set()
     supported_claims = [
         claim
@@ -1076,35 +1089,23 @@ def _query_from_graph(
         if claim.status == "active"
         and _claim_is_retrieval_supported(claim, assessments_by_id.get(claim.claim_id))
     ]
+    nodes_by_id = {node.node_id: node for node in graph.nodes}
     for claim in supported_claims:
-        if claim.behavior_type in seen_predicates:
-            continue
-        term = predicate_terms.get(claim.behavior_type)
-        if term:
-            parts.append(term)
+        if claim.behavior_type not in seen_predicates:
+            term = predicate_terms.get(claim.behavior_type)
+            if term:
+                parts.append(term)
             seen_predicates.add(claim.behavior_type)
-
-    salient_terms = (
-        "轻伤二级", "轻伤", "重伤", "骨折", "鉴定意见", "殴打", "抱摔", "推搡",
-        "盗窃", "窃取", "拿走", "手机", "现金", "财物",
-        "损坏", "毁坏", "砸坏", "车辆",
-        "扰乱秩序", "公共场所", "聚众", "通行中断", "停止营业",
-        "放火", "爆炸", "投放危险物质", "不特定多数人",
-        "寻衅滋事", "随意殴打", "结伙斗殴", "威胁", "绑架", "偷越国（边）境",
-    )
-    supported_node_ids = {
-        node_id
-        for claim in supported_claims
-        for node_id in claim.supporting_node_ids
-    }
-    active_text = " ".join(
-        f"{node.behavior} {node.object}"
-        for node in graph.nodes
-        if node.status == "active"
-        and node.node_type == "fact"
-        and (not graph.claims or node.node_id in supported_node_ids)
-    )
-    parts.extend(term for term in salient_terms if term in active_text)
+        for node_id in claim.supporting_node_ids:
+            node = nodes_by_id.get(node_id)
+            if node is None or node.status != "active":
+                continue
+            legal_terms = node.metadata.get("legal_query_terms", [])
+            if isinstance(legal_terms, str):
+                legal_terms = [legal_terms]
+            if isinstance(legal_terms, (list, tuple)):
+                parts.extend(str(item).strip() for item in legal_terms if str(item).strip())
+            parts.append(f"{node.behavior} {node.object}".strip())
     if len(parts) == 1:
         parts.extend(f"{fact.behavior} {fact.object}" for fact in graph.facts[:6])
     return " ".join(dict.fromkeys(parts))[:1200]
@@ -1142,7 +1143,12 @@ def _query_from_allegations(
 
 def _claim_is_retrieval_supported(claim: Any, assessment: Any | None) -> bool:
     if assessment is not None:
-        if assessment.status in {"supported", "authority_anchored"}:
+        if assessment.status in {
+            "supported",
+            "authority_anchored",
+            "contested",
+            "contested_but_not_refuted",
+        }:
             return True
         return assessment.status == "bayesian_derived" and float(assessment.support_index) >= 0.5
     profile = getattr(claim, "confidence_profile", None)

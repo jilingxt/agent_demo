@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import re
 import subprocess
 import sys
@@ -126,3 +127,22 @@ def test_generator_script_runs_directly_from_project_root(tmp_path: Path) -> Non
     assert completed.returncode == 0, completed.stderr
     assert len(list((tmp_path / "corpus").glob("CR-*"))) == 5
     assert len(list((tmp_path / "corpus").glob("PS-*"))) == 5
+
+
+def test_two_generated_corpora_are_byte_reproducible(tmp_path: Path) -> None:
+    first = tmp_path / "first"
+    second = tmp_path / "second"
+    generate_corpus(first)
+    generate_corpus(second)
+
+    first_hashes = {
+        path.relative_to(first).as_posix(): hashlib.sha256(path.read_bytes()).hexdigest()
+        for path in first.rglob("*")
+        if path.is_file()
+    }
+    second_hashes = {
+        path.relative_to(second).as_posix(): hashlib.sha256(path.read_bytes()).hexdigest()
+        for path in second.rglob("*")
+        if path.is_file()
+    }
+    assert first_hashes == second_hashes

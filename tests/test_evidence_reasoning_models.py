@@ -19,6 +19,7 @@ class AssertionNormalizerTests(unittest.TestCase):
                         "predicate": "violence",
                         "target_person": "person-b",
                         "event_id": "event-1",
+                        "stance": "affirm",
                     },
                 ),
                 EvidenceNode(
@@ -32,6 +33,7 @@ class AssertionNormalizerTests(unittest.TestCase):
                         "predicate": "violence",
                         "object": "person-b",
                         "event_id": "event-1",
+                        "stance": "affirm",
                     },
                 ),
             ]
@@ -81,7 +83,7 @@ class AssertionNormalizerTests(unittest.TestCase):
         self.assertEqual(reversed_claim.target_person, "person-b")
         self.assertEqual(reversed_claim.object, "person-b")
 
-    def test_metadata_sparse_node_uses_existing_claim_type_inference(self):
+    def test_metadata_sparse_node_abstains_from_claim_type_inference(self):
         node = EvidenceNode(
             node_id="N-fallback",
             node_type="fact",
@@ -94,7 +96,8 @@ class AssertionNormalizerTests(unittest.TestCase):
 
         assertion = AssertionNormalizer().normalize_graph(CaseGraph(nodes=[node]))[0]
 
-        self.assertEqual(assertion.predicate, "violence")
+        self.assertEqual(assertion.predicate, "unresolved_observation")
+        self.assertEqual(assertion.stance, "ambiguous")
 
     def test_property_support_claims_keep_different_objects_separate(self):
         nodes = [

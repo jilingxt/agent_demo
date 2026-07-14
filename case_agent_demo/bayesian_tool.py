@@ -76,11 +76,19 @@ class BayesianModelRegistry:
     ) -> list[RegisteredBayesianModel]:
         del case_domains
         predicates = {claim.behavior_type for claim in claims}
-        return [
-            model
-            for model in self.models
-            if predicates.intersection(model.trigger_predicates)
-        ]
+        selected = []
+        for model in self.models:
+            if not predicates.intersection(model.trigger_predicates):
+                continue
+            anchor_predicates = {
+                predicate
+                for predicate, input_id in model.input_map.items()
+                if input_id in model.anchor_inputs
+            }
+            if anchor_predicates and not predicates.intersection(anchor_predicates):
+                continue
+            selected.append(model)
+        return selected
 
     def _load(self) -> tuple[str, list[RegisteredBayesianModel]]:
         try:

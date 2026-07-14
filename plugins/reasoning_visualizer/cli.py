@@ -13,11 +13,11 @@ from .snapshot import build_snapshot, load_snapshot, save_snapshot
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Visualize evidence and Bayesian reasoning graphs.")
-    source = parser.add_mutually_exclusive_group()
+    source = parser.add_mutually_exclusive_group(required=True)
     source.add_argument("--snapshot", help="Serve an existing visualization snapshot JSON file.")
     source.add_argument("--sample", action="store_true", help="Run the built-in case demo before serving.")
     source.add_argument("--evidence-dir", help="Run the current project against an evidence vault.")
-    parser.add_argument("--case-type", help="Human-confirmed case type; required with --evidence-dir.")
+    parser.add_argument("--case-type", help="Optional human-confirmed case type override.")
     parser.add_argument("--authority-verifications", help="Optional authority-verification JSON file.")
     parser.add_argument("--registry", help="Optional Bayesian registry.json path.")
     parser.add_argument("--enable-qwen-vision", action="store_true", help="Enable Qwen vision for evidence-dir images.")
@@ -31,8 +31,6 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> None:
     parser = build_parser()
     args = parser.parse_args(argv)
-    if args.evidence_dir and not args.case_type:
-        parser.error("--case-type is required with --evidence-dir")
     if args.no_serve and not args.export:
         parser.error("--no-serve requires --export")
 
@@ -65,7 +63,6 @@ def main(argv: list[str] | None = None) -> None:
 
 def _run_current_workflow(args: argparse.Namespace):
     from case_agent_demo.cli import attach_qwen_vision_tool, sample_materials
-    from case_agent_demo.config import ModelProfiles
     from case_agent_demo.evidence_intake import EvidenceIntake
     from case_agent_demo.workflow import CaseWorkflow
 
@@ -74,8 +71,8 @@ def _run_current_workflow(args: argparse.Namespace):
         if args.evidence_dir
         else sample_materials()
     )
-    case_type = args.case_type or "盗窃类案件"
-    workflow = CaseWorkflow(model_profiles=ModelProfiles.from_runtime_config())
+    case_type = args.case_type or ""
+    workflow = CaseWorkflow.from_runtime_config()
     if args.enable_qwen_vision:
         attach_qwen_vision_tool(workflow)
     verifications = None

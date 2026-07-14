@@ -112,7 +112,7 @@ class EvidenceIntake:
                 MaterialType.STATEMENT,
                 content.strip(),
                 source_path=str(path),
-                metadata={"declarant_role": _statement_role(path, content)},
+                metadata={"declarant_role": ""},
             ),
             EvidenceRecord(
                 material_id=material_id,
@@ -149,7 +149,7 @@ class EvidenceIntake:
                 MaterialType.REPORT_IMAGE,
                 content.strip(),
                 source_path=str(path),
-                metadata={"evidence_category": _report_category(content)},
+                metadata={"evidence_category": "report_material"},
             ),
             EvidenceRecord(
                 material_id=material_id,
@@ -226,27 +226,6 @@ def _safe_stem(path: Path) -> str:
 
 def _clean_text(text: str) -> str:
     return text.replace("\ufeff", "").strip()
-
-
-def _statement_role(path: Path, content: str) -> str:
-    text = f"{path.stem} {content[:120]}"
-    if any(label in text for label in ("报警人", "报案人", "被害人", "受害人", "被侵害人", "权利人", "占有人")):
-        return "reporting_person"
-    if any(label in text for label in ("嫌疑人", "行为人", "违法行为人", "被告人")):
-        return "alleged_actor"
-    if any(label in text for label in ("证人", "工作人员证言")):
-        return "witness"
-    return ""
-
-
-def _report_category(content: str) -> str:
-    if any(label in content for label in ("鉴定意见", "法医", "损伤程度")):
-        return "forensic_report"
-    if any(label in content for label in ("监控", "视频", "研判")):
-        return "video_analysis_report"
-    if any(label in content for label in ("银行流水", "交易记录", "转账记录")):
-        return "transaction_record"
-    return "official_report"
 
 
 def _write_manifest(path: Path, records: list[EvidenceRecord]) -> None:

@@ -29,18 +29,6 @@ DEFAULT_LEGAL_DOMAINS = [
 ]
 
 
-CASE_TYPE_DOMAIN_RULES = {
-    "personal_rights": ("伤害", "殴打", "人身"),
-    "property_rights": ("盗窃", "财物", "毁坏财物", "财产"),
-    "deception_disposition": ("虚构", "隐瞒真相", "欺骗", "错误认识", "转账"),
-    "economic_transactions": ("投资", "合同", "交易", "付款", "账户"),
-    "public_order": ("扰乱公共秩序", "寻衅", "聚众", "场所秩序"),
-    "public_safety": ("危害公共安全", "危险物质", "危险驾驶", "公共危险"),
-    "social_management": ("社会管理", "无证", "未经许可", "违反管理"),
-    "status_duty": ("特定身份", "法定义务", "职责", "授权"),
-}
-
-
 class DomainAffinityIndexer:
     def __init__(self, domains: list[LegalDomain] | None = None) -> None:
         self.domains = domains or DEFAULT_LEGAL_DOMAINS
@@ -81,24 +69,58 @@ class DomainAffinityIndexer:
 
 class CaseDomainRouter:
     def infer_domains(self, case_type: str, evidence_graph: EvidenceGraph) -> list[DomainAffinity]:
-        text = f"{case_type} " + " ".join(
-            f"{fact.behavior} {fact.object}" for fact in evidence_graph.facts
-        )
-        affinities = {
-            item.domain_id: item for item in DomainAffinityIndexer().score_text(text)
+        del case_type
+        from case_agent_demo.bayesian_tool import BayesianModelRegistry
+
+        predicates = {
+            claim.behavior_type
+            for claim in evidence_graph.claims
+            if claim.behavior_type and claim.behavior_type != "unresolved_observation"
         }
-        for domain_id, keywords in CASE_TYPE_DOMAIN_RULES.items():
-            if any(keyword in text for keyword in keywords):
-                _upsert_affinity(affinities, domain_id, 0.90, "case_type", "案件类型或事实命中同级案件领域")
-        if any(word in text for word in ("轻伤", "重伤", "骨折", "鉴定")):
-            _upsert_affinity(affinities, "forensic_injury", 0.85, "graph", "事实包含伤情或鉴定")
-        if any(word in text for word in ("监控", "图片", "照片", "视频")):
-            _upsert_affinity(affinities, "image_video_evidence", 0.75, "graph", "事实包含图像或视频材料")
+        predicates.update(
+            node.claim_type
+            for node in evidence_graph.nodes
+            if node.claim_type and node.claim_type != "unresolved_observation"
+        )
+        affinities: dict[str, DomainAffinity] = {}
+        for model in BayesianModelRegistry().models:
+            if not predicates.intersection(model.trigger_predicates):
+                continue
+            for domain_id in model.domains:
+                _upsert_affinity(
+                    affinities,
+                    domain_id,
+                    0.90,
+                    "predicate_registry",
+                    f"结构化谓词命中贝叶斯关系组件 {model.model_id}",
+                )
+
+        source_types = {node.source_type for node in evidence_graph.nodes}
+        evidence_categories = {
+            str(node.metadata.get("evidence_category", ""))
+            for node in evidence_graph.nodes
+        }
+        if "evidence_image" in source_types or evidence_categories.intersection(
+            {"image", "video", "image_observation", "video_analysis_report"}
+        ):
+            _upsert_affinity(
+                affinities,
+                "image_video_evidence",
+                0.75,
+                "material_type",
+                "证据材料类型包含图像或报告",
+            )
+        if "identification" in evidence_categories:
+            _upsert_affinity(
+                affinities,
+                "identification",
+                0.75,
+                "material_type",
+                "证据材料类型为辨认材料",
+            )
         if any(edge.edge_type == "contradicts" for edge in evidence_graph.edges):
             _upsert_affinity(affinities, "evidence_review", 0.70, "graph", "证据图存在冲突边")
             _upsert_affinity(affinities, "supplementary_investigation", 0.60, "graph", "冲突事实需要补证")
-        if "辨认" in text:
-            _upsert_affinity(affinities, "identification", 0.75, "graph", "事实包含辨认材料")
         return sorted(affinities.values(), key=lambda item: item.score, reverse=True)
 
 

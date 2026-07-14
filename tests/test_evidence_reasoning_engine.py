@@ -108,5 +108,5 @@ def test_reasoning_report_marks_contested_claims_in_place():
 
 
 def test_unrelated_use_of_character_wei_is_not_a_denial():
-    assert infer_polarity("张三是未成年人") == "affirm"
-    assert infer_polarity("张三未实施殴打") == "deny"
+    assert infer_polarity("张三是未成年人") == "ambiguous"
+    assert infer_polarity("张三未实施殴打") == "ambiguous"

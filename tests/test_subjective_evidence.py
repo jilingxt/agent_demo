@@ -60,6 +60,29 @@ class SubjectiveEvidenceTests(unittest.TestCase):
         self.assertGreater(two_groups.opinion.support, one_group.opinion.support)
         self.assertLess(two_groups.opinion.uncertainty, one_group.opinion.uncertainty)
 
+    def test_two_ordinary_independent_groups_are_supported_but_one_is_insufficient(self):
+        ordinary_quality = {name: 0.75 for name in QUALITY_VALUES}
+        one_group = self.engine.evaluate(
+            self.claim,
+            [assertion("A-1", **ordinary_quality)],
+        )
+        two_groups = self.engine.evaluate(
+            self.claim,
+            [
+                assertion("A-1", **ordinary_quality),
+                assertion(
+                    "A-2",
+                    source_group="group-2",
+                    origin="origin-2",
+                    **ordinary_quality,
+                ),
+            ],
+        )
+
+        self.assertEqual(one_group.status, "insufficient")
+        self.assertEqual(two_groups.status, "supported")
+        self.assertGreater(two_groups.opinion.uncertainty, 0.0)
+
     def test_duplicate_origins_contribute_only_the_strongest_support(self):
         duplicate = self.engine.evaluate(
             self.claim,

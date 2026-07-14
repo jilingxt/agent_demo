@@ -4,6 +4,7 @@ import argparse
 import json
 import shutil
 import sys
+import zipfile
 from dataclasses import asdict
 from datetime import datetime, timezone
 from pathlib import Path
@@ -222,6 +223,7 @@ def _write_statement_docx(path: Path, case: CaseSpec, material: MaterialSpec) ->
         document.add_paragraph(f"答：{answer}")
     document.add_paragraph("核对：上述合成记录已按测试情境核对。")
     document.save(path)
+    _normalize_docx_archive(path)
 
 
 def _write_report_docx(path: Path, case: CaseSpec, material: MaterialSpec) -> None:
@@ -243,6 +245,27 @@ def _write_report_docx(path: Path, case: CaseSpec, material: MaterialSpec) -> No
     )
     document.add_paragraph("测试出具单位：测试记录机构A（测试专用）")
     document.save(path)
+    _normalize_docx_archive(path)
+
+
+def _normalize_docx_archive(path: Path) -> None:
+    normalized = path.with_suffix(".normalized.docx")
+    with zipfile.ZipFile(path, "r") as source, zipfile.ZipFile(
+        normalized,
+        "w",
+        compression=zipfile.ZIP_DEFLATED,
+        compresslevel=9,
+    ) as destination:
+        for source_info in sorted(source.infolist(), key=lambda item: item.filename):
+            target_info = zipfile.ZipInfo(
+                source_info.filename,
+                date_time=(2026, 7, 14, 0, 0, 0),
+            )
+            target_info.compress_type = zipfile.ZIP_DEFLATED
+            target_info.external_attr = source_info.external_attr
+            target_info.create_system = source_info.create_system
+            destination.writestr(target_info, source.read(source_info.filename))
+    normalized.replace(path)
 
 
 def _render_report_png(path: Path, case: CaseSpec, material: MaterialSpec) -> None:

@@ -21,11 +21,11 @@
     {
       "actor": "测试职员甲",
       "predicate": "authorization_record_absent",
-      "status": "insufficient"
+      "status": "opposing_dominant"
     }
   ],
   "required_issue_types": [
-    "insufficient_evidence"
+    "opposing_evidence_dominant"
   ],
   "required_legal_articles": [
     "第一百八十五条"

@@ -136,7 +136,7 @@
     ]
   },
   "count_per_law": 5,
-  "database": "F:/汇报/Va1ha11a_demo/legal_knowledge/index/legal_kb.sqlite3",
+  "database": "legal_knowledge/index/legal_kb.sqlite3",
   "draw_trace": {
     "criminal_law": [
       {

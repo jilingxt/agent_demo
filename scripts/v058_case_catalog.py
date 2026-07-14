@@ -94,6 +94,8 @@ def _fact(
     origin_evidence: str = "",
     time: str = "",
     location: str = "测试地点",
+    legal_query_terms: tuple[str, ...] = (),
+    element_role: str = "",
 ) -> dict[str, Any]:
     return {
         "actor": actor,
@@ -113,6 +115,8 @@ def _fact(
         "time": time,
         "location": location,
         "evidence_span": behavior,
+        "legal_query_terms": list(legal_query_terms),
+        "element_role": element_role,
     }
 
 
@@ -199,7 +203,7 @@ def _cr353() -> CaseSpec:
                     ("你是否能确认物质来源？", "我只看到小袋在桌上，不能确认此前由谁保管。"),
                 ),
                 (
-                    _fact(actor=actor, target_person=consumer, object_entity="样本物A", predicate="inducing_consumption", behavior="测试人员乙称测试人员甲多次劝其尝试样本物A", event_id=event, declarant=consumer, declarant_role="reporting_party", source_group="SG-CR353-S1", origin_evidence="OR-CR353-S1"),
+                    _fact(actor=actor, target_person=consumer, object_entity="样本物A", predicate="inducing_consumption", behavior="测试人员乙称测试人员甲多次劝其尝试样本物A", event_id=event, declarant=consumer, declarant_role="reporting_party", source_group="SG-CR353-S1", origin_evidence="OR-CR353-S1", legal_query_terms=("引诱 教唆 欺骗他人吸食或注射毒品",)),
                     _fact(actor=consumer, object_entity="样本物A", predicate="consumption_result", behavior="测试人员乙确认自己摄入样本物A", event_id=event, declarant=consumer, declarant_role="reporting_party", source_group="SG-CR353-S1", origin_evidence="OR-CR353-S1"),
                 ),
             ),
@@ -259,7 +263,7 @@ def _cr185() -> CaseSpec:
         summary="资金划转和岗位权限有记录，但是否超越授权及是否属于挪用不能仅由流水推出。",
         materials=(
             _statement(case_id, "S1", "核查人员笔录.docx", "核查人员询问笔录", "reporting_party", (("发现了什么情况？", "测试账户A向测试账户B划转一笔测试资金，指令由测试职员甲发起。"), ("是否掌握授权文件？", "系统中有业务审批编号，但附件版本不完整。")), (
-                _fact(actor=actor, object_entity="测试资金批次A", predicate="conduct_recorded", behavior="核查人员确认测试职员甲发起资金划转指令", event_id=event, declarant="测试核查人员", declarant_role="reporting_party", source_group="SG-CR185-S1", origin_evidence="OR-CR185-S1"),
+                _fact(actor=actor, object_entity="测试资金批次A", predicate="conduct_recorded", behavior="核查人员确认测试职员甲发起资金划转指令", event_id=event, declarant="测试核查人员", declarant_role="reporting_party", source_group="SG-CR185-S1", origin_evidence="OR-CR185-S1", legal_query_terms=("金融机构工作人员利用职务便利挪用本单位或者客户资金",)),
                 _fact(actor=actor, predicate="authorization_record_absent", behavior="现有审批附件不完整，授权范围尚不能确认", event_id=event, stance="ambiguous", declarant="测试核查人员", declarant_role="reporting_party", source_group="SG-CR185-S1", origin_evidence="OR-CR185-S1"),
             )),
             _statement(case_id, "S2", "测试职员甲笔录.docx", "相关职员询问笔录", "alleged_actor", (("是否发起该笔划转？", "是，我发起了系统指令。"), ("你是否没有授权？", "不是。该业务已通过测试审批流程，我按当日授权执行。"), ("资金是否供个人使用？", "没有，资金进入测试项目账户。")), (
@@ -274,11 +278,11 @@ def _cr185() -> CaseSpec:
         ),
         required_claims=(
             {"actor": actor, "predicate": "conduct_recorded", "object": "测试资金批次A", "status": "supported"},
-            {"actor": actor, "predicate": "authorization_record_absent", "status": "insufficient"},
+            {"actor": actor, "predicate": "authorization_record_absent", "status": "opposing_dominant"},
         ),
         expected_bayesian_models=("status_duty",),
         required_legal_articles=("第一百八十五条",),
-        required_issue_types=("insufficient_evidence",),
+        required_issue_types=("opposing_evidence_dominant",),
     )
 
 
@@ -311,11 +315,11 @@ def _cr189() -> CaseSpec:
         ),
         required_claims=(
             {"actor": actor, "predicate": "conduct_recorded", "object": "测试票据A", "status": "supported"},
-            {"actor": actor, "predicate": "result_exists", "object": "初步损失估算", "status": "insufficient"},
+            {"actor": actor, "predicate": "result_exists", "object": "初步损失估算", "status": "unassessed"},
         ),
         expected_bayesian_models=("status_duty",),
         required_legal_articles=("第一百八十九条",),
-        required_issue_types=("insufficient_evidence",),
+        required_issue_types=("evidence_insufficiency",),
     )
 
 
@@ -336,18 +340,18 @@ def _cr429() -> CaseSpec:
         materials=(
             _statement(case_id, "S1", "训练参与人员笔录.docx", "训练参与人员询问笔录", "reporting_party", (("当时发生了什么？", "测试队员乙在模拟区发出求助，测试队员甲没有进入封闭区域。"), ("现场是否属于实战？", "不是，是事先安排的训练。")), (
                 _fact(actor=actor, target_person=target, predicate="non_rescue_conduct", behavior="训练参与人员称测试队员甲未进入模拟区实施救助", event_id=event, declarant="测试队员丙", declarant_role="witness", source_group="SG-CR429-S1", origin_evidence="OR-CR429-S1"),
-                _fact(actor="训练组织方", predicate="battlefield_context", behavior="事件发生在事先安排的训练环境而非实战", event_id=event, stance="deny", declarant="测试队员丙", declarant_role="witness", source_group="SG-CR429-S1", origin_evidence="OR-CR429-S1"),
+                _fact(actor="训练组织方", predicate="battlefield_context", behavior="事件发生在事先安排的训练环境而非实战", event_id=event, stance="deny", declarant="测试队员丙", declarant_role="witness", source_group="SG-CR429-S1", origin_evidence="OR-CR429-S1", element_role="legal_context"),
             )),
             _statement(case_id, "S2", "测试队员甲笔录.docx", "相关人员询问笔录", "alleged_actor", (("为何没有进入模拟区？", "入口锁止，备用装置也没有响应，我立即呼叫训练控制人员。"), ("你是否拒绝救助？", "没有，我当时无法安全进入。")), (
-                _fact(actor=actor, target_person=target, predicate="rescue_capability", behavior="测试队员甲称因入口锁止而无法进入实施救助", event_id=event, stance="deny", declarant=actor, declarant_role="alleged_actor", source_group="SG-CR429-S2", origin_evidence="OR-CR429-S2"),
+                _fact(actor=actor, target_person=target, predicate="rescue_capability", behavior="测试队员甲称因入口锁止而无法进入实施救助", event_id=event, stance="deny", declarant=actor, declarant_role="alleged_actor", source_group="SG-CR429-S2", origin_evidence="OR-CR429-S2", element_role="legal_context"),
             )),
             _report(case_id, "R1", "训练设备核查报告.docx", "训练设备核查报告", ("训练计划、签到表和控制台记录均表明该活动为模拟训练。", "入口控制装置在求助时间段出现锁止故障，备用开关无有效响应。", "现有材料未记录重大损失，测试队员乙经现场处置后离开模拟区。"), (
-                _fact(actor="训练组织方", predicate="battlefield_context", behavior="训练计划确认事件不是实战或战场环境", event_id=event, stance="deny", declarant="测试技术人员", declarant_role="report_author", assertion_role="objective_report", evidence_category="report_image", confidence=0.95, source_group="SG-CR429-R1", origin_evidence="OR-CR429-R1"),
-                _fact(actor=actor, target_person=target, predicate="rescue_capability", behavior="设备日志支持入口锁止并影响进入能力", event_id=event, stance="deny", declarant="测试技术人员", declarant_role="report_author", assertion_role="objective_report", evidence_category="report_image", confidence=0.92, source_group="SG-CR429-R1", origin_evidence="OR-CR429-R1"),
+                _fact(actor="训练组织方", predicate="battlefield_context", behavior="训练计划确认事件不是实战或战场环境", event_id=event, stance="deny", declarant="测试技术人员", declarant_role="report_author", assertion_role="objective_report", evidence_category="report_image", confidence=0.95, source_group="SG-CR429-R1", origin_evidence="OR-CR429-R1", element_role="legal_context"),
+                _fact(actor=actor, target_person=target, predicate="rescue_capability", behavior="设备日志支持入口锁止并影响进入能力", event_id=event, stance="deny", declarant="测试技术人员", declarant_role="report_author", assertion_role="objective_report", evidence_category="report_image", confidence=0.92, source_group="SG-CR429-R1", origin_evidence="OR-CR429-R1", element_role="legal_context"),
             )),
         ),
         required_claims=(
-            {"actor": actor, "predicate": "non_rescue_conduct", "target_person": target, "status": "supported"},
+            {"actor": actor, "predicate": "non_rescue_conduct", "target_person": target, "status": "insufficient"},
             {"actor": "训练组织方", "predicate": "battlefield_context", "status": "opposing_dominant"},
         ),
         expected_abstention=True,
@@ -371,7 +375,7 @@ def _cr186() -> CaseSpec:
         summary="审批行为被承认，但关联关系、违反规则、数额和损失需分别证明。",
         materials=(
             _statement(case_id, "S1", "业务复核人员笔录.docx", "业务复核人员询问笔录", "reporting_party", (("谁审批了测试贷款A？", "系统显示测试审批员甲完成了终审操作。"), ("借款方是否为关联方？", "档案里有同名信息，但主体对应关系尚未核实。")), (
-                _fact(actor=actor, object_entity="测试贷款A", predicate="conduct_recorded", behavior="业务复核人员确认测试审批员甲完成终审操作", event_id=event, declarant="测试复核人员", declarant_role="reporting_party", source_group="SG-CR186-S1", origin_evidence="OR-CR186-S1"),
+                _fact(actor=actor, object_entity="测试贷款A", predicate="conduct_recorded", behavior="业务复核人员确认测试审批员甲完成终审操作", event_id=event, declarant="测试复核人员", declarant_role="reporting_party", source_group="SG-CR186-S1", origin_evidence="OR-CR186-S1", legal_query_terms=("银行或者其他金融机构工作人员违反国家规定发放贷款", "向关系人发放贷款")),
                 _fact(actor=actor, object_entity="测试借款主体A", predicate="related_party_status", behavior="借款主体是否属于关联方尚未核实", event_id=event, stance="ambiguous", declarant="测试复核人员", declarant_role="reporting_party", source_group="SG-CR186-S1", origin_evidence="OR-CR186-S1"),
             )),
             _statement(case_id, "S2", "测试审批员甲笔录.docx", "审批人员询问笔录", "alleged_actor", (("是否完成终审？", "是，我完成了系统终审。"), ("你是否明知属于关联方？", "我不知道存在关联关系，系统当时没有提示。"), ("是否违反审批规则？", "我按当时展示的材料操作，是否缺件需要核对版本。")), (
@@ -386,11 +390,11 @@ def _cr186() -> CaseSpec:
         ),
         required_claims=(
             {"actor": actor, "predicate": "conduct_recorded", "object": "测试贷款A", "status": "supported"},
-            {"actor": actor, "predicate": "related_party_status", "object": "测试借款主体A", "status": "insufficient"},
+            {"actor": actor, "predicate": "related_party_status", "object": "测试借款主体A", "status": "opposing_dominant"},
         ),
         expected_bayesian_models=("status_duty",),
         required_legal_articles=("第一百八十六条",),
-        required_issue_types=("insufficient_evidence",),
+        required_issue_types=("opposing_evidence_dominant",),
     )
 
 
@@ -427,7 +431,7 @@ def _ps51() -> CaseSpec:
         ),
         required_claims=(
             {"actor": actor, "predicate": "violence", "target_person": target, "status": "supported"},
-            {"actor": target, "predicate": "injury_exists", "status": "supported"},
+            {"actor": target, "predicate": "injury_exists", "status": "insufficient"},
         ),
         expected_bayesian_models=("conduct_result",),
         required_legal_articles=("第五十一条",),
@@ -450,7 +454,7 @@ def _ps52() -> CaseSpec:
         summary="目击印象和模糊影像不足以确认特定行为，另有可核查的突发医疗处置解释。",
         materials=(
             _statement(case_id, "S1", "测试成年人己笔录.docx", "相关人员询问笔录", "reporting_party", (("你为何报告该情况？", "我看到测试人员戊动作异常，感觉可能针对我，但当时距离较远。"), ("是否看清具体动作？", "没有完全看清，也没有身体接触。")), (
-                _fact(actor=actor, target_person=target, predicate="indecent_conduct", behavior="测试成年人己认为远处异常动作可能针对自己但未看清", event_id=event, stance="ambiguous", declarant=target, declarant_role="reporting_party", source_group="SG-PS52-S1", origin_evidence="OR-PS52-S1"),
+                _fact(actor=actor, target_person=target, predicate="indecent_conduct", behavior="测试成年人己认为远处异常动作可能针对自己但未看清", event_id=event, stance="ambiguous", declarant=target, declarant_role="reporting_party", source_group="SG-PS52-S1", origin_evidence="OR-PS52-S1", legal_query_terms=("猥亵他人", "公共场所故意裸露身体隐私部位")),
             )),
             _statement(case_id, "S2", "测试人员戊笔录.docx", "被指认人员询问笔录", "alleged_actor", (("你是否实施针对他人的不当行为？", "没有。我突发过敏不适，正在整理衣物并等待帮助。"), ("是否有就诊或求助记录？", "有测试服务台求助记录和随后形成的诊疗记录。")), (
                 _fact(actor=actor, target_person=target, predicate="indecent_conduct", behavior="测试人员戊直接否认实施针对他人的不当行为", event_id=event, stance="deny", declarant=actor, declarant_role="alleged_actor", source_group="SG-PS52-S2", origin_evidence="OR-PS52-S2"),
@@ -487,15 +491,15 @@ def _ps31() -> CaseSpec:
         materials=(
             _statement(case_id, "S1", "活动参与者笔录.docx", "活动参与者询问笔录", "reporting_party", (("活动内容是什么？", "大家在预约的测试会议室自愿交流，没有要求交费或限制离开。"), ("是否有人受强迫或受损？", "我没有看到。争议来自场地方对活动主题不理解。")), (
                 _fact(actor=actor, predicate="private_gathering", behavior="参与者称活动为预约场所内的自愿交流", event_id=event, declarant="测试参与者甲", declarant_role="witness", source_group="SG-PS31-S1", origin_evidence="OR-PS31-S1"),
-                _fact(actor=actor, predicate="public_order_conduct", behavior="参与者未看到强迫、欺骗、扰乱或伤害行为", event_id=event, stance="deny", declarant="测试参与者甲", declarant_role="witness", source_group="SG-PS31-S1", origin_evidence="OR-PS31-S1"),
+                _fact(actor=actor, predicate="public_order_conduct", behavior="参与者未看到强迫、欺骗、扰乱或伤害行为", event_id=event, stance="deny", declarant="测试参与者甲", declarant_role="witness", source_group="SG-PS31-S1", origin_evidence="OR-PS31-S1", element_role="legal_element"),
             )),
             _statement(case_id, "S2", "测试组织者甲笔录.docx", "活动组织者询问笔录", "alleged_actor", (("你组织了什么活动？", "我预约会议室进行普通交流，参加和离开均自愿。"), ("是否要求参与者服从或交付财物？", "没有。")), (
                 _fact(actor=actor, predicate="private_gathering", behavior="测试组织者甲承认组织自愿交流活动", event_id=event, declarant=actor, declarant_role="alleged_actor", source_group="SG-PS31-S2", origin_evidence="OR-PS31-S2"),
-                _fact(actor=actor, predicate="public_order_conduct", behavior="测试组织者甲否认存在强迫、欺骗或扰乱行为", event_id=event, stance="deny", declarant=actor, declarant_role="alleged_actor", source_group="SG-PS31-S2", origin_evidence="OR-PS31-S2"),
+                _fact(actor=actor, predicate="public_order_conduct", behavior="测试组织者甲否认存在强迫、欺骗或扰乱行为", event_id=event, stance="deny", declarant=actor, declarant_role="alleged_actor", source_group="SG-PS31-S2", origin_evidence="OR-PS31-S2", element_role="legal_element"),
             )),
             _report(case_id, "R1", "场地与活动记录核查报告.docx", "场地与活动记录核查报告", ("场地预约、进出记录和现场照片显示活动在预约时间和房间内进行。", "记录中未见封堵出口、强迫交费、持续噪声或设施受损。", "该报告不能对活动内容作思想或价值评价。"), (
-                _fact(actor=actor, predicate="public_context", behavior="活动位于预约的独立会议室而非开放公共区域", event_id=event, stance="deny", declarant="测试场地人员", declarant_role="report_author", assertion_role="objective_report", evidence_category="report_image", confidence=0.9, source_group="SG-PS31-R1", origin_evidence="OR-PS31-R1"),
-                _fact(actor=actor, predicate="operational_impact", behavior="现有记录未见场地运行受明显影响", event_id=event, stance="deny", declarant="测试场地人员", declarant_role="report_author", assertion_role="objective_report", evidence_category="report_image", source_group="SG-PS31-R1", origin_evidence="OR-PS31-R1"),
+                _fact(actor=actor, predicate="public_context", behavior="活动位于预约的独立会议室而非开放公共区域", event_id=event, stance="deny", declarant="测试场地人员", declarant_role="report_author", assertion_role="objective_report", evidence_category="report_image", confidence=0.9, source_group="SG-PS31-R1", origin_evidence="OR-PS31-R1", element_role="legal_context"),
+                _fact(actor=actor, predicate="operational_impact", behavior="现有记录未见场地运行受明显影响", event_id=event, stance="deny", declarant="测试场地人员", declarant_role="report_author", assertion_role="objective_report", evidence_category="report_image", source_group="SG-PS31-R1", origin_evidence="OR-PS31-R1", element_role="legal_context"),
             )),
         ),
         required_claims=(
@@ -525,14 +529,14 @@ def _ps50() -> CaseSpec:
         materials=(
             _statement(case_id, "S1", "测试人员辛笔录.docx", "信息接收人员询问笔录", "reporting_party", (("你收到了什么？", "测试账号A向我发送多条带有威胁含义的信息。"), ("为何认为是测试人员庚？", "账号昵称与他以前用过的相似，但我没看到发送过程。")), (
                 _fact(actor="测试账号A", target_person=target, predicate="threatening_message", behavior="测试账号A向测试人员辛发送带有威胁含义的信息", event_id=event, declarant=target, declarant_role="reporting_party", source_group="SG-PS50-S1", origin_evidence="OR-PS50-S1"),
-                _fact(actor=actor, predicate="sender_attribution", behavior="测试人员辛根据昵称推测测试人员庚为发送人", event_id=event, stance="ambiguous", declarant=target, declarant_role="reporting_party", source_group="SG-PS50-S1", origin_evidence="OR-PS50-S1"),
+                _fact(actor=actor, predicate="sender_attribution", behavior="测试人员辛根据昵称推测测试人员庚为发送人", event_id=event, stance="ambiguous", declarant=target, declarant_role="reporting_party", source_group="SG-PS50-S1", origin_evidence="OR-PS50-S1", element_role="actor_attribution"),
             )),
             _statement(case_id, "S2", "测试人员庚笔录.docx", "被指认人员询问笔录", "alleged_actor", (("测试账号A是否由你使用？", "不是，我没有注册或控制该账号。"), ("你是否发送过这些信息？", "没有。")), (
-                _fact(actor=actor, predicate="sender_attribution", behavior="测试人员庚直接否认控制测试账号A或发送相关信息", event_id=event, stance="deny", declarant=actor, declarant_role="alleged_actor", source_group="SG-PS50-S2", origin_evidence="OR-PS50-S2"),
+                _fact(actor=actor, predicate="sender_attribution", behavior="测试人员庚直接否认控制测试账号A或发送相关信息", event_id=event, stance="deny", declarant=actor, declarant_role="alleged_actor", source_group="SG-PS50-S2", origin_evidence="OR-PS50-S2", element_role="actor_attribution"),
             )),
             _report(case_id, "R1", "电子数据核查报告.docx", "电子数据核查报告", ("接收设备中保存有测试账号A发送的信息，内容和时间戳可复核。", "平台回执仅能确认账号标识，现有导出材料不含实名验证、登录设备和网络来源。", "因此能够确认信息内容存在，不能确认测试人员庚为实际发送人。"), (
                 _fact(actor="测试账号A", target_person=target, predicate="threatening_message", behavior="接收设备记录确认测试账号A发送的威胁信息存在", event_id=event, declarant="测试数据人员", declarant_role="report_author", assertion_role="objective_report", evidence_category="report_image", confidence=0.95, source_group="SG-PS50-R1", origin_evidence="OR-PS50-R1"),
-                _fact(actor=actor, predicate="sender_attribution", behavior="现有电子数据不能确认测试人员庚为实际发送人", event_id=event, stance="ambiguous", declarant="测试数据人员", declarant_role="report_author", assertion_role="objective_report", evidence_category="report_image", confidence=0.9, source_group="SG-PS50-R1", origin_evidence="OR-PS50-R1"),
+                _fact(actor=actor, predicate="sender_attribution", behavior="现有电子数据不能确认测试人员庚为实际发送人", event_id=event, stance="ambiguous", declarant="测试数据人员", declarant_role="report_author", assertion_role="objective_report", evidence_category="report_image", confidence=0.9, source_group="SG-PS50-R1", origin_evidence="OR-PS50-R1", element_role="actor_attribution"),
             )),
         ),
         required_claims=(

@@ -69,18 +69,21 @@ class FinalConflictAgent:
 
         assessments = claim_assessments or []
         if assessments:
-            claim_types = {claim.claim_id: claim.behavior_type for claim in evidence_graph.claims}
+            claims_by_id = {claim.claim_id: claim for claim in evidence_graph.claims}
             model_inputs, primary_inputs = _model_input_roles()
             consumed_claim_ids = _consumed_or_covered_claim_ids(
                 evidence_graph,
                 bayesian_result,
             )
             for assessment in assessments:
-                behavior_type = claim_types.get(assessment.claim_id, "general")
+                claim = claims_by_id.get(assessment.claim_id)
+                behavior_type = claim.behavior_type if claim is not None else "general"
+                element_roles = set(claim.metadata.get("element_roles", [])) if claim is not None else set()
                 issue = _assessment_issue(
                     counter,
                     assessment,
                     behavior_type,
+                    element_roles=element_roles,
                     report_insufficiency=(
                         behavior_type not in model_inputs
                         or behavior_type in primary_inputs
@@ -169,6 +172,18 @@ class FinalConflictAgent:
             counter += 1
 
         for node in evidence_graph.nodes:
+            if node.metadata.get("semantic_status") == "unresolved":
+                issues.append(
+                    ValidationIssue(
+                        issue_id=f"V-{counter}",
+                        issue_type="semantic_extraction_unresolved",
+                        severity="high",
+                        target_node_ids=[node.node_id],
+                        reason="材料尚未形成可审计的结构化事实断言，系统已停止语义推断。",
+                        required_action="检查语义模型配置，或由人工核对原始材料后补录结构化断言。",
+                    )
+                )
+                counter += 1
             if node.source_type not in {"evidence_image", "report_image"} or node.confidence >= 0.75:
                 continue
             issues.append(
@@ -226,8 +241,10 @@ def _assessment_issue(
     assessment: ClaimAssessment,
     behavior_type: str,
     *,
+    element_roles: set[str] | None = None,
     report_insufficiency: bool = True,
 ) -> ValidationIssue | None:
+    element_roles = element_roles or set()
     if assessment.status == "bayesian_derived" and assessment.support_index < 0.5:
         issue_type = "causation_insufficient" if behavior_type == "causation" else "derived_fact_insufficient"
         severity = "high" if behavior_type == "causation" else "medium"
@@ -248,6 +265,25 @@ def _assessment_issue(
             behavior_type,
             "正向证据仍占优势或与反向证据相当，但存在实质争议。",
         )
+    if assessment.status in {"insufficient", "unassessed", "opposing_dominant"}:
+        if "actor_attribution" in element_roles:
+            return _claim_issue(
+                counter,
+                "actor_attribution_gap",
+                "high",
+                assessment.claim_id,
+                behavior_type,
+                "现有材料不足以确认被指认主体与相关行为之间的归属关系。",
+            )
+        if element_roles.intersection({"legal_context", "legal_element"}):
+            return _claim_issue(
+                counter,
+                "legal_element_missing",
+                "high",
+                assessment.claim_id,
+                behavior_type,
+                "相关规范所需的情境或事实要素尚未获得证据支持。",
+            )
     if assessment.status in {"insufficient", "unassessed"} and report_insufficiency:
         return _claim_issue(
             counter,

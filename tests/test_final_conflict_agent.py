@@ -8,12 +8,32 @@ from case_agent_demo.models import (
     ClaimOpinion,
     EvidenceClaim,
     EvidenceEdge,
+    EvidenceNode,
     Fact,
     LegalRAGResult,
 )
 
 
 class FinalConflictAgentTests(unittest.TestCase):
+    def test_unresolved_semantic_observation_requires_human_extraction_review(self):
+        graph = CaseGraph(
+            nodes=[
+                EvidenceNode(
+                    "F1",
+                    "fact",
+                    "S1",
+                    "statement",
+                    "raw material",
+                    metadata={"semantic_status": "unresolved"},
+                )
+            ]
+        )
+        rag = LegalRAGResult(matches=["law"], chunks=["chunk"], query="", purpose="review")
+
+        issues = FinalConflictAgent().review("", graph, "", rag)
+
+        self.assertTrue(any(issue.issue_type == "semantic_extraction_unresolved" for issue in issues))
+
     def test_legacy_full_node_values_only_review_registered_derived_nodes(self):
         rag = LegalRAGResult(matches=[], chunks=[], query="", purpose="final_review")
 
@@ -109,6 +129,54 @@ class FinalConflictAgentTests(unittest.TestCase):
         )
 
         self.assertTrue(any(issue.issue_type == "evidence_insufficiency" for issue in issues))
+
+    def test_actor_attribution_role_produces_specific_gap_issue(self):
+        claim = EvidenceClaim(
+            "C-ACTOR",
+            "测试人员",
+            "open_identity_relation",
+            metadata={"element_roles": ["actor_attribution"]},
+        )
+        assessment = ClaimAssessment(
+            claim.claim_id,
+            status="opposing_dominant",
+            opinion=ClaimOpinion(claim.claim_id, opposition=0.4, uncertainty=0.6),
+        )
+        rag = LegalRAGResult(matches=["law"], chunks=["chunk"], query="", purpose="review")
+
+        issues = FinalConflictAgent().review(
+            "",
+            CaseGraph(claims=[claim]),
+            "",
+            rag,
+            claim_assessments=[assessment],
+        )
+
+        self.assertTrue(any(issue.issue_type == "actor_attribution_gap" for issue in issues))
+
+    def test_legal_context_role_produces_missing_element_issue(self):
+        claim = EvidenceClaim(
+            "C-CONTEXT",
+            "测试人员",
+            "open_context_relation",
+            metadata={"element_roles": ["legal_context"]},
+        )
+        assessment = ClaimAssessment(
+            claim.claim_id,
+            status="opposing_dominant",
+            opinion=ClaimOpinion(claim.claim_id, opposition=0.4, uncertainty=0.6),
+        )
+        rag = LegalRAGResult(matches=["law"], chunks=["chunk"], query="", purpose="review")
+
+        issues = FinalConflictAgent().review(
+            "",
+            CaseGraph(claims=[claim]),
+            "",
+            rag,
+            claim_assessments=[assessment],
+        )
+
+        self.assertTrue(any(issue.issue_type == "legal_element_missing" for issue in issues))
 
 
 if __name__ == "__main__":

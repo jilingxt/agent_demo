@@ -8,7 +8,6 @@ from pathlib import Path
 from typing import Any
 
 from case_agent_demo.evidence_intake import EvidenceIntake, ensure_evidence_vault
-from case_agent_demo.config import ModelProfiles
 from case_agent_demo.models import Material, MaterialType
 from case_agent_demo.vision_tools import QwenImageEvidenceTool
 from case_agent_demo.workflow import CaseWorkflow
@@ -78,7 +77,7 @@ def main() -> None:
         print(f"Evidence vault initialized: {root}")
         return
 
-    workflow = CaseWorkflow(model_profiles=ModelProfiles.from_runtime_config())
+    workflow = CaseWorkflow.from_runtime_config()
     if should_enable_qwen_vision(args):
         attach_qwen_vision_tool(workflow)
     materials = _load_materials(args)

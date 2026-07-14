@@ -6,10 +6,24 @@ from case_agent_demo.evidence_reasoning import AssertionNormalizer
 from case_agent_demo.models import EvidenceNode, Material, MaterialType
 from case_agent_demo.prompt_config import PromptLoader
 from case_agent_demo.workflow import CaseWorkflow
+from tests.semantic_runtime import SemanticFixtureRuntime, semantic_fact
+
+
+def _workflow_with_facts(facts_by_material_id):
+    workflow = CaseWorkflow.demo()
+    runtime = SemanticFixtureRuntime(facts_by_material_id)
+    workflow.text_agent.runtime = runtime
+    workflow.pic_agent.runtime = runtime
+    workflow.report_image_agent.runtime = runtime
+    return workflow
 
 
 def test_workflow_runs_without_manually_confirmed_case_type():
-    result = CaseWorkflow.demo().run(
+    result = _workflow_with_facts({"S-1": [
+        semantic_fact(actor="李大海", target_person="王小明", predicate="deceptive_representation", behavior="李大海作出不实项目陈述", declarant="王小明", assertion_role="allegation", declarant_role="reporting_person", event_id="EVENT-1"),
+        semantic_fact(actor="李大海", target_person="王小明", predicate="mistaken_belief", behavior="王小明形成错误认识", declarant="王小明", event_id="EVENT-1"),
+        semantic_fact(actor="王小明", target_person="李大海", predicate="property_disposition", behavior="王小明实施财产处分", declarant="王小明", object="十万元", event_id="EVENT-1"),
+    ]}).run(
         [
             Material(
                 "S-1",
@@ -21,7 +35,7 @@ def test_workflow_runs_without_manually_confirmed_case_type():
 
     assert result.confirmed_case_type == ""
     assert result.case_type_context.status == "provisional"
-    assert "deception_disposition" in result.inferred_case_domains
+    assert "property_rights" in result.inferred_case_domains
     assert result.evidence_book is not None
     assert result.evidence_book.allegations
     assert result.case_graph.claims
@@ -158,15 +172,15 @@ def test_case_replay_does_not_require_case_type(tmp_path):
         encoding="utf-8",
     )
 
-    result = replay_case(case_dir, CaseWorkflow.demo())
+    result = replay_case(case_dir, _workflow_with_facts({"S-REPORTER": [semantic_fact(actor="周某", target_person="陈某", predicate="deceptive_representation", behavior="周某作出不实项目陈述", declarant="陈某", assertion_role="allegation", declarant_role="reporting_person")]}))
 
     assert result.confirmed_case_type == ""
     assert result.evidence_book is not None
     assert result.evidence_book.allegations
 
 
-def test_text_fallback_propagates_explicit_source_role():
-    fact = TextAgent().extract(
+def test_text_semantic_output_propagates_explicit_source_role():
+    fact = TextAgent(runtime=SemanticFixtureRuntime({"S-WITNESS": [semantic_fact(actor="周某", target_person="", predicate="unmodeled_conduct", behavior="周某实施相关行为", declarant="王某", declarant_role="witness", assertion_role="statement_evidence")]})).extract(
         Material(
             "S-WITNESS",
             MaterialType.STATEMENT,
@@ -200,7 +214,7 @@ def test_llm_prompts_use_the_same_case_neutral_assertion_contract():
 
 
 def test_alleged_actor_denial_becomes_opposing_statement_evidence():
-    fact = TextAgent().extract(
+    fact = TextAgent(runtime=SemanticFixtureRuntime({"S-ACTOR": [semantic_fact(actor="李大海", target_person="王小明", predicate="deceptive_representation", behavior="李大海否认欺骗王小明", stance="deny", declarant="李大海", declarant_role="alleged_actor", assertion_role="defense_response")]})).extract(
         Material(
             "S-ACTOR",
             MaterialType.STATEMENT,
@@ -216,7 +230,7 @@ def test_alleged_actor_denial_becomes_opposing_statement_evidence():
 
 
 def test_report_time_reference_does_not_create_a_new_disposition_actor():
-    fact = ReportImageAgent().extract(
+    fact = ReportImageAgent(runtime=SemanticFixtureRuntime({"R-PROJECT": [semantic_fact(actor="李大海", target_person="王小明", predicate="deceptive_representation", behavior="登记记录与项目陈述不符", evidence_category="report_image")]})).extract(
         Material(
             "R-PROJECT",
             MaterialType.REPORT_IMAGE,
@@ -232,7 +246,7 @@ def test_report_time_reference_does_not_create_a_new_disposition_actor():
 
 
 def test_group_actor_before_location_is_not_replaced_by_location_fragment():
-    fact = TextAgent().extract(
+    fact = TextAgent(runtime=SemanticFixtureRuntime({"S-WITNESS": [semantic_fact(actor="周强", target_person="", predicate="public_order_conduct", behavior="周强等人实施相关行为", declarant="陈凯", declarant_role="witness")]})).extract(
         Material(
             "S-WITNESS",
             MaterialType.STATEMENT,

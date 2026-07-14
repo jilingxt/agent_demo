@@ -4,6 +4,7 @@ import unittest
 from pathlib import Path
 
 from case_agent_demo.agent_runtime import AgentRuntime, AgentRuntimeConfigError
+from case_agent_demo.llm_clients import ModelApiError
 from case_agent_demo.config import ModelProfile
 from case_agent_demo.prompt_config import PromptLoader
 
@@ -29,6 +30,26 @@ class FakeClient:
 
 
 class AgentRuntimeTests(unittest.TestCase):
+    def test_model_api_failure_uses_safe_fallback(self):
+        class FailingClient:
+            def build_chat_payload(self, profile, system_prompt, user_input):
+                return {}
+
+            def chat_completions(self, payload):
+                raise ModelApiError("provider unavailable")
+
+        runtime = AgentRuntime(client=FailingClient())
+
+        result = runtime.run_json(
+            "text_agent",
+            object(),
+            "material",
+            fallback=lambda: "unresolved",
+            parser=lambda data: data,
+        )
+
+        self.assertEqual(result, "unresolved")
+
     def test_run_json_uses_prompt_and_parser_when_client_returns_json(self):
         with tempfile.TemporaryDirectory() as tmp:
             prompt_dir = Path(tmp)

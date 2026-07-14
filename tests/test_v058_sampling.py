@@ -63,3 +63,13 @@ def test_sampling_manifest_is_canonically_reproducible() -> None:
         "criminal_law": 402,
         "public_security_law": 64,
     }
+
+
+def test_project_database_path_is_canonical_for_absolute_and_relative_inputs(monkeypatch) -> None:
+    monkeypatch.chdir(ROOT)
+
+    absolute = sample_provisions(DATABASE, seed=58)
+    relative = sample_provisions(DATABASE.relative_to(ROOT), seed=58)
+
+    assert absolute == relative
+    assert absolute["database"] == "legal_knowledge/index/legal_kb.sqlite3"

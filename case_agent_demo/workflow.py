@@ -14,7 +14,7 @@ from case_agent_demo.agents import (
     ReviewAgent,
     TextAgent,
 )
-from case_agent_demo.confidence import ClaimBuilder, ConfidenceEngine
+from case_agent_demo.agent_runtime import AgentRuntime
 from case_agent_demo.config import ModelProfiles
 from case_agent_demo.evidence_reasoning_engine import EvidenceReasoningEngine
 from case_agent_demo.evidence_book import EvidenceBookBuilder
@@ -30,6 +30,7 @@ from case_agent_demo.models import (
     MaterialType,
     WorkflowResult,
 )
+from case_agent_demo.llm_clients import Dsv4Client, MissingApiKeyError
 from case_agent_demo.open_source_stack import OpenSourceStack
 from case_agent_demo.tools import LegalRetrievalTool
 
@@ -50,8 +51,6 @@ class CaseWorkflow:
     conflict_agent: ConflictAgent = field(default_factory=ConflictAgent)
     legal_tool: LegalRetrievalTool = field(default_factory=LegalRetrievalTool)
     legal_kb: LegalKnowledgeBaseTool = field(default_factory=LegalKnowledgeBaseTool)
-    claim_builder: ClaimBuilder = field(default_factory=ClaimBuilder)
-    confidence_engine: ConfidenceEngine = field(default_factory=ConfidenceEngine)
     evidence_reasoning_engine: EvidenceReasoningEngine = field(default_factory=EvidenceReasoningEngine)
     evidence_book_builder: EvidenceBookBuilder = field(default_factory=EvidenceBookBuilder)
     final_conflict_agent: FinalConflictAgent = field(default_factory=FinalConflictAgent)
@@ -60,6 +59,11 @@ class CaseWorkflow:
     review_agent: ReviewAgent = field(default_factory=ReviewAgent)
 
     def __post_init__(self) -> None:
+        self.planning_agent.profile = self.model_profiles.planning
+        self.text_agent.profile = self.model_profiles.text
+        self.pic_agent.profile = self.model_profiles.text
+        self.report_image_agent.profile = self.model_profiles.reasoning
+        self.reasoning_agent.profile = self.model_profiles.reasoning
         self.legal_tool.legal_kb = self.legal_kb
         self.report_image_agent.legal_tool = self.legal_tool
         self.evidence_graph_agent.legal_tool = self.legal_tool
@@ -70,6 +74,24 @@ class CaseWorkflow:
     @classmethod
     def demo(cls) -> "CaseWorkflow":
         return cls()
+
+    @classmethod
+    def from_runtime_config(cls, api_config_path=None) -> "CaseWorkflow":
+        workflow = cls(model_profiles=ModelProfiles.from_runtime_config(api_config_path))
+        try:
+            client = Dsv4Client.from_config_file(api_config_path)
+        except (FileNotFoundError, MissingApiKeyError):
+            client = None
+        workflow.attach_semantic_runtime(client)
+        return workflow
+
+    def attach_semantic_runtime(self, client) -> None:
+        runtime = AgentRuntime(client=client)
+        self.planning_agent.runtime = runtime
+        self.text_agent.runtime = runtime
+        self.pic_agent.runtime = runtime
+        self.report_image_agent.runtime = runtime
+        self.reasoning_agent.runtime = runtime
 
     def suggest_case_type(self, materials: list[Material]) -> CaseTypeSuggestion:
         return self.planning_agent.suggest(materials)

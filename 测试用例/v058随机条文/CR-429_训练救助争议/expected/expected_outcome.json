@@ -13,7 +13,7 @@
     {
       "actor": "测试队员甲",
       "predicate": "non_rescue_conduct",
-      "status": "supported",
+      "status": "insufficient",
       "target_person": "测试队员乙"
     },
     {

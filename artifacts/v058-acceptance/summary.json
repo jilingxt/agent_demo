@@ -1,0 +1,1105 @@
+{
+  "cases": [
+    {
+      "article": "第一百八十五条",
+      "bayesian_abstentions": [],
+      "bayesian_models": [
+        "status_duty"
+      ],
+      "case_id": "CR-185",
+      "claim_assessments": [
+        {
+          "claim_id": "CL-conduct_recorded-测试职员甲-unknown-EVTCR18501",
+          "conflict_index": 0.0,
+          "status": "supported",
+          "support_index": 0.8468,
+          "uncertainty": 0.30632393096915383
+        },
+        {
+          "claim_id": "CL-authorization_record_abs-测试职员甲-unknown-EVTCR18501",
+          "conflict_index": 0.0,
+          "status": "opposing_dominant",
+          "support_index": 0.2881,
+          "uncertainty": 0.5762526238917602
+        },
+        {
+          "claim_id": "CL-duty_record_present-测试职员甲-unknown-EVTCR18501",
+          "conflict_index": 0.0,
+          "status": "insufficient",
+          "support_index": 0.7203,
+          "uncertainty": 0.559443136606257
+        },
+        {
+          "claim_id": "CL-status_duty-status_duty_facts_supported-测试职员甲-测试资金批次A-EVT-CR-185-01",
+          "conflict_index": 0.0,
+          "status": "bayesian_derived",
+          "support_index": 0.434,
+          "uncertainty": 1.0
+        }
+      ],
+      "complexity_type": "business_authorization_dispute",
+      "deterministic_error": "",
+      "deterministic_status": "passed",
+      "directory": "CR-185_资金授权争议",
+      "expected_contract": {
+        "bayesian_models": [
+          "status_duty"
+        ],
+        "claims": [
+          {
+            "actor": "测试职员甲",
+            "object": "测试资金批次A",
+            "predicate": "conduct_recorded",
+            "status": "supported"
+          },
+          {
+            "actor": "测试职员甲",
+            "predicate": "authorization_record_absent",
+            "status": "opposing_dominant"
+          }
+        ],
+        "legal_articles": [
+          "第一百八十五条"
+        ],
+        "validation_issue_types": [
+          "opposing_evidence_dominant"
+        ]
+      },
+      "law": "中华人民共和国刑法",
+      "legal_articles": [
+        "第一百七十七条之一",
+        "第一百八十七条",
+        "第一百八十五条",
+        "第一百八十条",
+        "第一百六十六条",
+        "第三百八十四条",
+        "第二百七十一条",
+        "第二百七十二条"
+      ],
+      "live_status": {
+        "status": "not_run"
+      },
+      "material_hashes": {
+        "reports/资金流水核查报告.docx": "bb9cc22bd059f90983b631b0de47c6b9c3fa98875765c97ed95e0f45c3ef950e",
+        "statements/核查人员笔录.docx": "156412c3c0552f6dbc6c0f6cb4a84dbf4aa881a71c0b4bf73d49e430daf0a400",
+        "statements/测试职员甲笔录.docx": "1442d2baa893ebf209c128e6552534ec14c7acfac5d8ca42680d175e82e423a3"
+      },
+      "model_versions": {
+        "bayesian": "status_duty:1",
+        "bayesian_models": [
+          "status_duty:1"
+        ],
+        "subjective": "subjective-evidence-v1"
+      },
+      "parameter_hashes": {
+        "status_duty:EVT-CR-185-01|测试职员甲|测试资金批次A": "a420202bfac79a5e8c3a2ee3cf3955f977906da52ce5651bd37da051fce9ee73"
+      },
+      "validation_issue_types": [
+        "derived_fact_insufficient",
+        "opposing_evidence_dominant"
+      ]
+    },
+    {
+      "article": "第一百八十六条",
+      "bayesian_abstentions": [],
+      "bayesian_models": [
+        "status_duty"
+      ],
+      "case_id": "CR-186",
+      "claim_assessments": [
+        {
+          "claim_id": "CL-conduct_recorded-测试审批员甲-unknown-EVTCR18601",
+          "conflict_index": 0.0,
+          "status": "supported",
+          "support_index": 0.847,
+          "uncertainty": 0.3060352949298294
+        },
+        {
+          "claim_id": "CL-related_party_status-测试审批员甲-测试借款主体a-EVTCR18601",
+          "conflict_index": 0.0,
+          "status": "opposing_dominant",
+          "support_index": 0.2881,
+          "uncertainty": 0.5762526238917602
+        },
+        {
+          "claim_id": "CL-duty_record_present-测试审批员甲-unknown-EVTCR18601",
+          "conflict_index": 0.0,
+          "status": "insufficient",
+          "support_index": 0.7208,
+          "uncertainty": 0.5584459130218974
+        },
+        {
+          "claim_id": "CL-status_duty-status_duty_facts_supported-测试审批员甲-测试贷款A-EVT-CR-186-01",
+          "conflict_index": 0.0,
+          "status": "bayesian_derived",
+          "support_index": 0.4084,
+          "uncertainty": 1.0
+        }
+      ],
+      "complexity_type": "partial_admission",
+      "deterministic_error": "",
+      "deterministic_status": "passed",
+      "directory": "CR-186_贷款部分承认",
+      "expected_contract": {
+        "bayesian_models": [
+          "status_duty"
+        ],
+        "claims": [
+          {
+            "actor": "测试审批员甲",
+            "object": "测试贷款A",
+            "predicate": "conduct_recorded",
+            "status": "supported"
+          },
+          {
+            "actor": "测试审批员甲",
+            "object": "测试借款主体A",
+            "predicate": "related_party_status",
+            "status": "opposing_dominant"
+          }
+        ],
+        "legal_articles": [
+          "第一百八十六条"
+        ],
+        "validation_issue_types": [
+          "opposing_evidence_dominant"
+        ]
+      },
+      "law": "中华人民共和国刑法",
+      "legal_articles": [
+        "第一百七十五条之一",
+        "第一百七十四条",
+        "第一百八十七条",
+        "第一百八十九条",
+        "第一百八十五条之一",
+        "第一百八十八条",
+        "第一百八十六条",
+        "第一百八十条"
+      ],
+      "live_status": {
+        "status": "not_run"
+      },
+      "material_hashes": {
+        "reports/贷款与资金核查报告.docx": "1bb0d8a5edfa2cdc917f1a433cecc165d42507a18e6cf7090434290f8c438b89",
+        "statements/业务复核人员笔录.docx": "cfb0256f95cdfe790cbdc6aae900c00bb35c677ab37f5e8ab0a9a632f4809568",
+        "statements/测试审批员甲笔录.docx": "6ac67f50e3667dcc2a4eafe8b74f27b0a2a5c4358667863871d13e8acc90a835"
+      },
+      "model_versions": {
+        "bayesian": "status_duty:1",
+        "bayesian_models": [
+          "status_duty:1"
+        ],
+        "subjective": "subjective-evidence-v1"
+      },
+      "parameter_hashes": {
+        "status_duty:EVT-CR-186-01|测试审批员甲|测试贷款A": "a420202bfac79a5e8c3a2ee3cf3955f977906da52ce5651bd37da051fce9ee73"
+      },
+      "validation_issue_types": [
+        "derived_fact_insufficient",
+        "opposing_evidence_dominant"
+      ]
+    },
+    {
+      "article": "第一百八十九条",
+      "bayesian_abstentions": [],
+      "bayesian_models": [
+        "status_duty"
+      ],
+      "case_id": "CR-189",
+      "claim_assessments": [
+        {
+          "claim_id": "CL-conduct_recorded-测试职员乙-unknown-EVTCR18901",
+          "conflict_index": 0.0,
+          "status": "supported",
+          "support_index": 0.8468,
+          "uncertainty": 0.30632393096915383
+        },
+        {
+          "claim_id": "CL-authorization_record_abs-测试职员乙-unknown-EVTCR18901",
+          "conflict_index": 0.0,
+          "status": "unassessed",
+          "support_index": 0.5,
+          "uncertainty": 1.0
+        },
+        {
+          "claim_id": "CL-duty_record_present-测试职员乙-unknown-EVTCR18901",
+          "conflict_index": 0.0,
+          "status": "insufficient",
+          "support_index": 0.7198,
+          "uncertainty": 0.5604627906869637
+        },
+        {
+          "claim_id": "CL-result_exists-测试职员乙-初步损失估算-EVTCR18901",
+          "conflict_index": 0.0,
+          "status": "unassessed",
+          "support_index": 0.5,
+          "uncertainty": 1.0
+        },
+        {
+          "claim_id": "CL-status_duty-status_duty_facts_supported-测试职员乙-测试票据A-EVT-CR-189-01",
+          "conflict_index": 0.0,
+          "status": "bayesian_derived",
+          "support_index": 0.4081,
+          "uncertainty": 1.0
+        }
+      ],
+      "complexity_type": "evidence_insufficient",
+      "deterministic_error": "",
+      "deterministic_status": "passed",
+      "directory": "CR-189_票据证据不足",
+      "expected_contract": {
+        "bayesian_models": [
+          "status_duty"
+        ],
+        "claims": [
+          {
+            "actor": "测试职员乙",
+            "object": "测试票据A",
+            "predicate": "conduct_recorded",
+            "status": "supported"
+          },
+          {
+            "actor": "测试职员乙",
+            "object": "初步损失估算",
+            "predicate": "result_exists",
+            "status": "unassessed"
+          }
+        ],
+        "legal_articles": [
+          "第一百八十九条"
+        ],
+        "validation_issue_types": [
+          "evidence_insufficiency"
+        ]
+      },
+      "law": "中华人民共和国刑法",
+      "legal_articles": [
+        "第一百七十五条之一",
+        "第一百九十一条",
+        "第一百二十五条",
+        "第一百八十九条",
+        "第一百八十八条",
+        "第一百条",
+        "第二百二十五条",
+        "第二百八十六条"
+      ],
+      "live_status": {
+        "status": "not_run"
+      },
+      "material_hashes": {
+        "reports/票据业务核查报告.docx": "8197d7501393923da7c8bca99f7b4a8b8a2470f3860e70fb226f6ceb27c2e27e",
+        "statements/业务主管笔录.docx": "7b44e1fc100791502482bae50fcf08db78c0502c64d4f8697f9c0d9973a8b9be",
+        "statements/测试职员乙笔录.docx": "29c40f70c9274094f3038232a6f54591ba09c537bb8c1be0a65922419c687880"
+      },
+      "model_versions": {
+        "bayesian": "status_duty:1",
+        "bayesian_models": [
+          "status_duty:1"
+        ],
+        "subjective": "subjective-evidence-v1"
+      },
+      "parameter_hashes": {
+        "status_duty:EVT-CR-189-01|测试职员乙|测试票据A": "a420202bfac79a5e8c3a2ee3cf3955f977906da52ce5651bd37da051fce9ee73"
+      },
+      "validation_issue_types": [
+        "derived_fact_insufficient",
+        "evidence_insufficiency"
+      ]
+    },
+    {
+      "article": "第三百五十三条",
+      "bayesian_abstentions": [
+        {
+          "anchor_claim_id": "",
+          "group_key": "",
+          "missing_inputs": [],
+          "model_id": "registry",
+          "reason": "no_matching_relation_component"
+        }
+      ],
+      "bayesian_models": [],
+      "case_id": "CR-353",
+      "claim_assessments": [
+        {
+          "claim_id": "CL-inducing_consumption-测试人员甲-测试人员乙-EVTCR35301",
+          "conflict_index": 1.0,
+          "status": "contested",
+          "support_index": 0.5,
+          "uncertainty": 0.40474358974197044
+        },
+        {
+          "claim_id": "CL-consumption_result-测试人员乙-样本物a-EVTCR35301",
+          "conflict_index": 0.0,
+          "status": "supported",
+          "support_index": 0.8021,
+          "uncertainty": 0.3958775329556574
+        },
+        {
+          "claim_id": "CL-actor_attribution-测试人员甲-测试人员乙-EVTCR35301",
+          "conflict_index": 0.0,
+          "status": "unassessed",
+          "support_index": 0.5,
+          "uncertainty": 1.0
+        }
+      ],
+      "complexity_type": "direct_denial",
+      "deterministic_error": "",
+      "deterministic_status": "passed",
+      "directory": "CR-353_引诱行为争议",
+      "expected_contract": {
+        "bayesian_models": [],
+        "claims": [
+          {
+            "actor": "测试人员甲",
+            "predicate": "inducing_consumption",
+            "status": "contested",
+            "target_person": "测试人员乙"
+          },
+          {
+            "actor": "测试人员乙",
+            "object": "样本物A",
+            "predicate": "consumption_result",
+            "status": "supported"
+          }
+        ],
+        "legal_articles": [
+          "第三百五十三条"
+        ],
+        "validation_issue_types": [
+          "contested_but_not_refuted"
+        ]
+      },
+      "law": "中华人民共和国刑法",
+      "legal_articles": [
+        "第三百五十三条",
+        "第三百五十五条",
+        "第三百五十五条之一",
+        "第三百五十四条",
+        "第三百四十七条",
+        "第八十五条",
+        "第八十四条",
+        "第十七条"
+      ],
+      "live_status": {
+        "status": "not_run"
+      },
+      "material_hashes": {
+        "reports/电子数据研判报告.docx": "a7e8f45f7409839644eb53312acdc21b76874d235cd87d305053b9a347bce279",
+        "statements/测试人员甲笔录.docx": "e123720b94db912eaf175b522f845149ad3a2f960bd4c036253d0129ea4da7bd",
+        "statements/相关人员乙笔录.docx": "220baa05a3ad42f822ecfa122c375f81f357bc4d6453214b2f4faef1dbf75107"
+      },
+      "model_versions": {
+        "subjective": "subjective-evidence-v1"
+      },
+      "parameter_hashes": {},
+      "validation_issue_types": [
+        "bayesian_inference_abstained",
+        "contested_but_not_refuted",
+        "evidence_conflict",
+        "evidence_insufficiency"
+      ]
+    },
+    {
+      "article": "第四百二十九条",
+      "bayesian_abstentions": [
+        {
+          "anchor_claim_id": "",
+          "group_key": "",
+          "missing_inputs": [],
+          "model_id": "registry",
+          "reason": "no_matching_relation_component"
+        }
+      ],
+      "bayesian_models": [],
+      "case_id": "CR-429",
+      "claim_assessments": [
+        {
+          "claim_id": "CL-non_rescue_conduct-测试队员甲-测试队员乙-EVTCR42901",
+          "conflict_index": 0.0,
+          "status": "insufficient",
+          "support_index": 0.7119,
+          "uncertainty": 0.5762526238917602
+        },
+        {
+          "claim_id": "CL-battlefield_context-训练组织方-unknown-EVTCR42901",
+          "conflict_index": 0.0,
+          "status": "opposing_dominant",
+          "support_index": 0.1973,
+          "uncertainty": 0.3946693890757805
+        },
+        {
+          "claim_id": "CL-rescue_capability-测试队员甲-测试队员乙-EVTCR42901",
+          "conflict_index": 0.0,
+          "status": "opposing_dominant",
+          "support_index": 0.1977,
+          "uncertainty": 0.39538693705303235
+        }
+      ],
+      "complexity_type": "non_offense_context",
+      "deterministic_error": "",
+      "deterministic_status": "passed",
+      "directory": "CR-429_训练救助争议",
+      "expected_contract": {
+        "bayesian_models": [],
+        "claims": [
+          {
+            "actor": "测试队员甲",
+            "predicate": "non_rescue_conduct",
+            "status": "insufficient",
+            "target_person": "测试队员乙"
+          },
+          {
+            "actor": "训练组织方",
+            "predicate": "battlefield_context",
+            "status": "opposing_dominant"
+          }
+        ],
+        "legal_articles": [
+          "第四百二十九条"
+        ],
+        "validation_issue_types": [
+          "legal_element_missing"
+        ]
+      },
+      "law": "中华人民共和国刑法",
+      "legal_articles": [
+        "第三十七条之一",
+        "第三十九条",
+        "第三百七十六条",
+        "第九十八条",
+        "第二百九十四条",
+        "第四十条",
+        "第四百二十九条",
+        "第四百五十一条"
+      ],
+      "live_status": {
+        "status": "not_run"
+      },
+      "material_hashes": {
+        "reports/训练设备核查报告.docx": "8a8b420ba9ec25951b1fe64ea34714ddb8e2fb2d9c343661ad0fb6d80dd9f22d",
+        "statements/测试队员甲笔录.docx": "3774f060219f7cc0dd3cba9ab044b1d528534ebfd6fcb7bf6b35a94f8c6f4567",
+        "statements/训练参与人员笔录.docx": "bf385cd1a4656231a2f494173beda1aa418043beecf458fa12dd22e1a899b3f4"
+      },
+      "model_versions": {
+        "subjective": "subjective-evidence-v1"
+      },
+      "parameter_hashes": {},
+      "validation_issue_types": [
+        "bayesian_inference_abstained",
+        "evidence_insufficiency",
+        "legal_element_missing"
+      ]
+    },
+    {
+      "article": "第三十一条",
+      "bayesian_abstentions": [
+        {
+          "anchor_claim_id": "",
+          "group_key": "",
+          "missing_inputs": [],
+          "model_id": "public_order",
+          "reason": "missing_allegation_anchor"
+        }
+      ],
+      "bayesian_models": [
+        "public_order"
+      ],
+      "case_id": "PS-31",
+      "claim_assessments": [
+        {
+          "claim_id": "CL-private_gathering-测试组织者甲-unknown-EVTPS3101",
+          "conflict_index": 0.0,
+          "status": "supported",
+          "support_index": 0.7976,
+          "uncertainty": 0.40474358974197044
+        },
+        {
+          "claim_id": "CL-public_order_conduct-测试组织者甲-unknown-EVTPS3101",
+          "conflict_index": 0.0,
+          "status": "opposing_dominant",
+          "support_index": 0.2024,
+          "uncertainty": 0.40474358974197044
+        },
+        {
+          "claim_id": "CL-public_context-测试组织者甲-unknown-EVTPS3101",
+          "conflict_index": 0.0,
+          "status": "opposing_dominant",
+          "support_index": 0.2792,
+          "uncertainty": 0.5584459130218974
+        },
+        {
+          "claim_id": "CL-operational_impact-测试组织者甲-unknown-EVTPS3101",
+          "conflict_index": 0.0,
+          "status": "opposing_dominant",
+          "support_index": 0.2802,
+          "uncertainty": 0.5604627906869637
+        }
+      ],
+      "complexity_type": "ordinary_activity_dispute",
+      "deterministic_error": "",
+      "deterministic_status": "passed",
+      "directory": "PS-31_普通活动纠纷",
+      "expected_contract": {
+        "bayesian_models": [],
+        "claims": [
+          {
+            "actor": "测试组织者甲",
+            "predicate": "private_gathering",
+            "status": "supported"
+          },
+          {
+            "actor": "测试组织者甲",
+            "predicate": "public_order_conduct",
+            "status": "opposing_dominant"
+          }
+        ],
+        "legal_articles": [
+          "第三十一条"
+        ],
+        "validation_issue_types": [
+          "legal_element_missing"
+        ]
+      },
+      "law": "中华人民共和国治安管理处罚法",
+      "legal_articles": [
+        "第三十一条",
+        "第三十五条",
+        "第三百四十七条",
+        "第二百九十四条",
+        "第八十一条",
+        "第八十四条",
+        "第六十五条",
+        "第四十五条"
+      ],
+      "live_status": {
+        "status": "not_run"
+      },
+      "material_hashes": {
+        "reports/场地与活动记录核查报告.docx": "058ae28753b96c29072dca4d19c4daf5d1f13c6fd8e9a960712ca6cf78fde56b",
+        "statements/活动参与者笔录.docx": "b0f0a1dd192e8d02c2fb101dfd599adb4e1faaa160528b6549de4712629a6f7d",
+        "statements/测试组织者甲笔录.docx": "e9baf2db7bf6a0c34e312fdea082d960f0f17739e466cc4098d80817afbb3f3d"
+      },
+      "model_versions": {
+        "subjective": "subjective-evidence-v1"
+      },
+      "parameter_hashes": {},
+      "validation_issue_types": [
+        "bayesian_inference_abstained",
+        "legal_element_missing"
+      ]
+    },
+    {
+      "article": "第五十条",
+      "bayesian_abstentions": [
+        {
+          "anchor_claim_id": "",
+          "group_key": "",
+          "missing_inputs": [],
+          "model_id": "registry",
+          "reason": "no_matching_relation_component"
+        }
+      ],
+      "bayesian_models": [],
+      "case_id": "PS-50",
+      "claim_assessments": [
+        {
+          "claim_id": "CL-threatening_message-测试账号A-测试人员辛-EVTPS5001",
+          "conflict_index": 0.0,
+          "status": "supported",
+          "support_index": 0.8027,
+          "uncertainty": 0.3946693890757805
+        },
+        {
+          "claim_id": "CL-sender_attribution-测试人员庚-unknown-EVTPS5001",
+          "conflict_index": 0.0,
+          "status": "opposing_dominant",
+          "support_index": 0.2881,
+          "uncertainty": 0.5762526238917602
+        }
+      ],
+      "complexity_type": "actor_attribution_dispute",
+      "deterministic_error": "",
+      "deterministic_status": "passed",
+      "directory": "PS-50_账号归属争议",
+      "expected_contract": {
+        "bayesian_models": [],
+        "claims": [
+          {
+            "actor": "测试账号A",
+            "predicate": "threatening_message",
+            "status": "supported",
+            "target_person": "测试人员辛"
+          },
+          {
+            "actor": "测试人员庚",
+            "predicate": "sender_attribution",
+            "status": "opposing_dominant"
+          }
+        ],
+        "legal_articles": [
+          "第五十条"
+        ],
+        "validation_issue_types": [
+          "actor_attribution_gap"
+        ]
+      },
+      "law": "中华人民共和国治安管理处罚法",
+      "legal_articles": [
+        "第一百八十条",
+        "第三百零八条之一",
+        "第九十八条",
+        "第二百八十七条之一",
+        "第二百八十七条之二",
+        "第二百八十六条之一",
+        "第二百六十五条",
+        "第五十条"
+      ],
+      "live_status": {
+        "status": "not_run"
+      },
+      "material_hashes": {
+        "reports/电子数据核查报告.docx": "fdd664f366919b240eed0626a7df29a897493fe92d2a749ee38f0e798ae37fa2",
+        "statements/测试人员庚笔录.docx": "0a28d45993722183bac4c1c6e449e02da016af509e64f3776a4738e1c07e51d7",
+        "statements/测试人员辛笔录.docx": "fb9ef1a8c7108b353b9822afac74b4bdac28e1abbe449fd0c359e73e25577356"
+      },
+      "model_versions": {
+        "subjective": "subjective-evidence-v1"
+      },
+      "parameter_hashes": {},
+      "validation_issue_types": [
+        "actor_attribution_gap",
+        "bayesian_inference_abstained"
+      ]
+    },
+    {
+      "article": "第五十一条",
+      "bayesian_abstentions": [],
+      "bayesian_models": [
+        "conduct_result"
+      ],
+      "case_id": "PS-51",
+      "claim_assessments": [
+        {
+          "claim_id": "CL-violence-测试人员丙-测试人员丁-EVTPS5101",
+          "conflict_index": 0.0,
+          "status": "supported",
+          "support_index": 0.844,
+          "uncertainty": 0.31191028997533954
+        },
+        {
+          "claim_id": "CL-injury_exists-测试人员丁-unknown-EVTPS5101",
+          "conflict_index": 0.0,
+          "status": "insufficient",
+          "support_index": 0.7208,
+          "uncertainty": 0.5584459130218974
+        },
+        {
+          "claim_id": "CL-mechanism_consistency-测试人员丙-测试人员丁-EVTPS5101",
+          "conflict_index": 0.0,
+          "status": "insufficient",
+          "support_index": 0.7198,
+          "uncertainty": 0.5604627906869637
+        },
+        {
+          "claim_id": "CL-temporal_consistency-测试人员丙-测试人员丁-EVTPS5101",
+          "conflict_index": 0.0,
+          "status": "insufficient",
+          "support_index": 0.7198,
+          "uncertainty": 0.5604627906869637
+        },
+        {
+          "claim_id": "CL-alternative_cause-测试人员丙-测试人员丁-EVTPS5101",
+          "conflict_index": 0.0,
+          "status": "opposing_dominant",
+          "support_index": 0.2802,
+          "uncertainty": 0.5604627906869637
+        },
+        {
+          "claim_id": "CL-conduct_result-causation-测试人员丙-测试人员丁-EVT-PS-51-01",
+          "conflict_index": 0.0,
+          "status": "bayesian_derived",
+          "support_index": 0.6353,
+          "uncertainty": 1.0
+        }
+      ],
+      "complexity_type": "full_admission",
+      "deterministic_error": "",
+      "deterministic_status": "passed",
+      "directory": "PS-51_行为完整承认",
+      "expected_contract": {
+        "bayesian_models": [
+          "conduct_result"
+        ],
+        "claims": [
+          {
+            "actor": "测试人员丙",
+            "predicate": "violence",
+            "status": "supported",
+            "target_person": "测试人员丁"
+          },
+          {
+            "actor": "测试人员丁",
+            "predicate": "injury_exists",
+            "status": "insufficient"
+          }
+        ],
+        "legal_articles": [
+          "第五十一条"
+        ],
+        "validation_issue_types": []
+      },
+      "law": "中华人民共和国治安管理处罚法",
+      "legal_articles": [
+        "第二百三十四条",
+        "第五十一条"
+      ],
+      "live_status": {
+        "fallback_used": false,
+        "keyword_fallback_used": false,
+        "missing_expected_count": 7,
+        "status": "completed",
+        "unexpected_actual_count": 6,
+        "unresolved_count": 0
+      },
+      "material_hashes": {
+        "reports/现场检查报告.docx": "9153de400c4850521a2dde0c790d2326469cfd050cf9674278051c946ff5fa4e",
+        "statements/测试人员丁笔录.docx": "235afaaabde0d392538d6d18036e8488bb0e25f1729dab4e4ec503473cfccdb0",
+        "statements/测试人员丙笔录.docx": "48552449fab7a8219484c02f0819b4c6dd429d597af81a2fe08ad623932bb4bb",
+        "statements/测试见证人甲笔录.docx": "8e3fccf4ca3af3c5747f46cd40e5054b7818174ba3a2f1a570126a6aa497835c"
+      },
+      "model_versions": {
+        "bayesian": "conduct_result:1",
+        "bayesian_models": [
+          "conduct_result:1"
+        ],
+        "subjective": "subjective-evidence-v1"
+      },
+      "parameter_hashes": {
+        "conduct_result:EVT-PS-51-01|测试人员丙|测试人员丁": "02c27390b3f054a9d17293155fb0f397be4a6d9da5a6c4ae869884de8a5f32f7"
+      },
+      "validation_issue_types": [
+        "opposing_evidence_dominant"
+      ]
+    },
+    {
+      "article": "第五十二条",
+      "bayesian_abstentions": [
+        {
+          "anchor_claim_id": "",
+          "group_key": "",
+          "missing_inputs": [],
+          "model_id": "registry",
+          "reason": "no_matching_relation_component"
+        }
+      ],
+      "bayesian_models": [],
+      "case_id": "PS-52",
+      "claim_assessments": [
+        {
+          "claim_id": "CL-indecent_conduct-测试人员戊-测试成年人己-EVTPS5201",
+          "conflict_index": 0.0,
+          "status": "opposing_dominant",
+          "support_index": 0.2881,
+          "uncertainty": 0.5762526238917602
+        },
+        {
+          "claim_id": "CL-alternative_explanation-测试人员戊-unknown-EVTPS5201",
+          "conflict_index": 0.0,
+          "status": "supported",
+          "support_index": 0.8021,
+          "uncertainty": 0.3958775329556574
+        }
+      ],
+      "complexity_type": "alternative_explanation",
+      "deterministic_error": "",
+      "deterministic_status": "passed",
+      "directory": "PS-52_行为与医疗解释",
+      "expected_contract": {
+        "bayesian_models": [],
+        "claims": [
+          {
+            "actor": "测试人员戊",
+            "predicate": "indecent_conduct",
+            "status": "opposing_dominant",
+            "target_person": "测试成年人己"
+          },
+          {
+            "actor": "测试人员戊",
+            "predicate": "alternative_explanation",
+            "status": "supported"
+          }
+        ],
+        "legal_articles": [
+          "第五十二条"
+        ],
+        "validation_issue_types": [
+          "opposing_evidence_dominant"
+        ]
+      },
+      "law": "中华人民共和国治安管理处罚法",
+      "legal_articles": [
+        "第七十七条",
+        "第三十五条",
+        "第二十六条",
+        "第二百三十七条",
+        "第二百二十九条",
+        "第二百八十七条之二",
+        "第五十二条",
+        "第四十三条"
+      ],
+      "live_status": {
+        "status": "not_run"
+      },
+      "material_hashes": {
+        "reports/影像与求助记录核查报告.docx": "dd2943a1b25e673b353c5aa5d1d87354950f89c524016d5913c75be647006761",
+        "statements/测试人员戊笔录.docx": "a829fbf506f77df91dc2418657a4354d81ec4754f1d8da8d1ae6ff0ebee52cd6",
+        "statements/测试成年人己笔录.docx": "c82d831573b59188b9870107b51dad76d007890f4a69aa8557675ce9083bf0ee"
+      },
+      "model_versions": {
+        "subjective": "subjective-evidence-v1"
+      },
+      "parameter_hashes": {},
+      "validation_issue_types": [
+        "bayesian_inference_abstained",
+        "image_evidence_low_confidence",
+        "opposing_evidence_dominant"
+      ]
+    },
+    {
+      "article": "第八十三条",
+      "bayesian_abstentions": [
+        {
+          "anchor_claim_id": "",
+          "group_key": "",
+          "missing_inputs": [],
+          "model_id": "registry",
+          "reason": "no_matching_relation_component"
+        }
+      ],
+      "bayesian_models": [],
+      "case_id": "PS-83",
+      "claim_assessments": [
+        {
+          "claim_id": "CL-cultivation_conduct-测试种植者甲-待鉴别植物a-EVTPS8301",
+          "conflict_index": 0.0,
+          "status": "supported",
+          "support_index": 0.8468,
+          "uncertainty": 0.30632393096915383
+        },
+        {
+          "claim_id": "CL-voluntary_removal-测试种植者甲-待鉴别植物a-EVTPS8301",
+          "conflict_index": 0.0,
+          "status": "supported",
+          "support_index": 0.847,
+          "uncertainty": 0.3060352949298294
+        }
+      ],
+      "complexity_type": "statutory_exception",
+      "deterministic_error": "",
+      "deterministic_status": "passed",
+      "directory": "PS-83_主动清除例外",
+      "expected_contract": {
+        "bayesian_models": [],
+        "claims": [
+          {
+            "actor": "测试种植者甲",
+            "object": "待鉴别植物A",
+            "predicate": "cultivation_conduct",
+            "status": "supported"
+          },
+          {
+            "actor": "测试种植者甲",
+            "object": "待鉴别植物A",
+            "predicate": "voluntary_removal",
+            "status": "supported"
+          }
+        ],
+        "legal_articles": [
+          "第八十三条"
+        ],
+        "validation_issue_types": []
+      },
+      "law": "中华人民共和国治安管理处罚法",
+      "legal_articles": [
+        "第一百三十九条",
+        "第一百零三条",
+        "第一百零二条",
+        "第七十一条",
+        "第三百三十条",
+        "第二十五条",
+        "第八十三条",
+        "第四十四条"
+      ],
+      "live_status": {
+        "status": "not_run"
+      },
+      "material_hashes": {
+        "reports/现场检查与植物检验报告.docx": "59fc19933215d399b128c8c39b588d29c4d471930dabf5915110e9d0b794467e",
+        "statements/发现人员笔录.docx": "d801ff11db4aa937c0bd84457dca1c9a22e42b6d6906a4da6d4aba64ba05f0a8",
+        "statements/测试种植者甲笔录.docx": "bee8b671e66a0ea72086f7b3c3c6742f6084282ae9bf7147ca4608d0cdd1925c"
+      },
+      "model_versions": {
+        "subjective": "subjective-evidence-v1"
+      },
+      "parameter_hashes": {},
+      "validation_issue_types": [
+        "bayesian_inference_abstained"
+      ]
+    }
+  ],
+  "git_revision": "df2b39575d5eb9b416d3c11c05486daf061c4b7f",
+  "sampling": {
+    "accepted": {
+      "criminal_law": [
+        {
+          "article": "第三百五十三条",
+          "chapter": "第六章 妨害社会管理秩序罪",
+          "chunk_id": "C-D-6024525a467e-d6cf9a2f4e",
+          "document_hash": "74ec867761610dccaca1d380f6dad0f2de80ea8821a86854d40bbf2564ba63a4",
+          "document_id": "D-6024525a467e",
+          "part": "第二编 分则",
+          "section": "第七节 走私、贩卖、运输、制造毒品罪",
+          "source_page_end": 58,
+          "source_page_start": 58,
+          "text": "第三百五十三条 引诱、教唆、欺骗他人吸食、注射毒品的，处三年以下有期徒刑、拘役或者\n管制，并处罚金；情节严重的，处三年以上七年以下有期徒刑，并处罚金。\n强迫他人吸食、注射毒品的，处三年以上十年以下有期徒刑，并处罚金。\n引诱、教唆、欺骗或者强迫未成年人吸食、注射毒品的，从重处罚。",
+          "title": "中华人民共和国刑法"
+        },
+        {
+          "article": "第一百八十五条",
+          "chapter": "第三章 破坏社会主义市场经济秩序罪",
+          "chunk_id": "C-D-6024525a467e-7662f6e78f",
+          "document_hash": "74ec867761610dccaca1d380f6dad0f2de80ea8821a86854d40bbf2564ba63a4",
+          "document_id": "D-6024525a467e",
+          "part": "第二编 分则",
+          "section": "第四节 破坏金融管理秩序罪",
+          "source_page_end": 29,
+          "source_page_start": 29,
+          "text": "第一百八十五条 商业银行、证券交易所、期货交易所、证券公司、期货经纪公司、保险公司\n或者其他金融机构的工作人员利用职务上的便利，挪用本单位或者客户资金的，依照本法第二百\n七十二条的规定定罪处罚。\n国有商业银行、证券交易所、期货交易所、证券公司、期货经纪公司、保险公司或者其他国\n有金融机构的工作人员和国有商业银行、证券交易所、期货交易所、证券公司、期货经纪公司、\n保险公司或者其他国有金融机构委派到前款规定中的非国有机构从事公务的人员有前款行为的，\n依照本法第三百八十四条的规定定罪处罚。",
+          "title": "中华人民共和国刑法"
+        },
+        {
+          "article": "第一百八十九条",
+          "chapter": "第三章 破坏社会主义市场经济秩序罪",
+          "chunk_id": "C-D-6024525a467e-e68e9a03c4",
+          "document_hash": "74ec867761610dccaca1d380f6dad0f2de80ea8821a86854d40bbf2564ba63a4",
+          "document_id": "D-6024525a467e",
+          "part": "第二编 分则",
+          "section": "第四节 破坏金融管理秩序罪",
+          "source_page_end": 30,
+          "source_page_start": 29,
+          "text": "第一百八十九条 银行或者其他金融机构的工作人员在票据业务中，对违反票据法规定的票据\n予以承兑、付款或者保证，造成重大损失的，处五年以下有期徒刑或者拘役；造成特别重大损失\n的，处五年以上有期徒刑。\n单位犯前款罪的，对单位判处罚金，并对其直接负责的主管人员和其他直接责任人员，依照\n前款的规定处罚。",
+          "title": "中华人民共和国刑法"
+        },
+        {
+          "article": "第四百二十九条",
+          "chapter": "第十章 军人违反职责罪",
+          "chunk_id": "C-D-6024525a467e-b774c145ba",
+          "document_hash": "74ec867761610dccaca1d380f6dad0f2de80ea8821a86854d40bbf2564ba63a4",
+          "document_id": "D-6024525a467e",
+          "part": "第二编 分则",
+          "section": "",
+          "source_page_end": 68,
+          "source_page_start": 68,
+          "text": "第四百二十九条 在战场上明知友邻部队处境危急请求救援，能救援而不救援，致使友邻部队\n遭受重大损失的，对指挥人员，处五年以下有期徒刑。",
+          "title": "中华人民共和国刑法"
+        },
+        {
+          "article": "第一百八十六条",
+          "chapter": "第三章 破坏社会主义市场经济秩序罪",
+          "chunk_id": "C-D-6024525a467e-1a73689f98",
+          "document_hash": "74ec867761610dccaca1d380f6dad0f2de80ea8821a86854d40bbf2564ba63a4",
+          "document_id": "D-6024525a467e",
+          "part": "第二编 分则",
+          "section": "第四节 破坏金融管理秩序罪",
+          "source_page_end": 29,
+          "source_page_start": 29,
+          "text": "第一百八十六条 银行或者其他金融机构的工作人员违反国家规定发放贷款，数额巨大或者造\n成重大损失的，处五年以下有期徒刑或者拘役，并处一万元以上十万元以下罚金；数额特别巨大\n或者造成特别重大损失的，处五年以上有期徒刑，并处二万元以上二十万元以下罚金。\n银行或者其他金融机构的工作人员违反国家规定，向关系人发放贷款的，依照前款的规定从\n重处罚。\n单位犯前两款罪的，对单位判处罚金，并对其直接负责的主管人员和其他直接责任人员，依\n照前两款的规定处罚。\n关系人的范围，依照《中华人民共和国商业银行法》和有关金融法规确定。",
+          "title": "中华人民共和国刑法"
+        }
+      ],
+      "public_security_law": [
+        {
+          "article": "第五十一条",
+          "chapter": "第三章 违反治安管理的行为和处罚",
+          "chunk_id": "C-D-cd15f4f1ac12-11b8f5d849",
+          "document_hash": "cee8d240af947be003fbf177db9129d930bd13757c77d6b45e9a9aedc2faa58a",
+          "document_id": "D-cd15f4f1ac12",
+          "part": "",
+          "section": "第三节 侵犯人身权利、财产权利的行为和处罚",
+          "source_page_end": 10,
+          "source_page_start": 10,
+          "text": "第五十一条 殴打他人的，或者故意伤害他人身体的，处五日以上十日以下拘留，并处五百元\n以上一千元以下罚款；情节较轻的，处五日以下拘留或者一千元以下罚款。\n有下列情形之一的，处十日以上十五日以下拘留，并处一千元以上二千元以下罚款：\n（一）结伙殴打、伤害他人的；\n（二）殴打、伤害残疾人、孕妇、不满十四周岁的人或者七十周岁以上的人的；\n（三）多次殴打、伤害他人或者一次殴打、伤害多人的。",
+          "title": "中华人民共和国治安管理处罚法"
+        },
+        {
+          "article": "第五十二条",
+          "chapter": "第三章 违反治安管理的行为和处罚",
+          "chunk_id": "C-D-cd15f4f1ac12-1f3b3c3509",
+          "document_hash": "cee8d240af947be003fbf177db9129d930bd13757c77d6b45e9a9aedc2faa58a",
+          "document_id": "D-cd15f4f1ac12",
+          "part": "",
+          "section": "第三节 侵犯人身权利、财产权利的行为和处罚",
+          "source_page_end": 10,
+          "source_page_start": 10,
+          "text": "第五十二条 猥亵他人的，处五日以上十日以下拘留；猥亵精神病人、智力残疾人、不满十四\n周岁的人或者有其他严重情节的，处十日以上十五日以下拘留。\n在公共场所故意裸露身体隐私部位的，处警告或者五百元以下罚款；情节恶劣的，处五日以\n上十日以下拘留。",
+          "title": "中华人民共和国治安管理处罚法"
+        },
+        {
+          "article": "第三十一条",
+          "chapter": "第三章 违反治安管理的行为和处罚",
+          "chunk_id": "C-D-cd15f4f1ac12-926704b47f",
+          "document_hash": "cee8d240af947be003fbf177db9129d930bd13757c77d6b45e9a9aedc2faa58a",
+          "document_id": "D-cd15f4f1ac12",
+          "part": "",
+          "section": "第一节 扰乱公共秩序的行为和处罚",
+          "source_page_end": 6,
+          "source_page_start": 6,
+          "text": "第三十一条 有下列行为之一的，处十日以上十五日以下拘留，可以并处二千元以下罚款；情\n节较轻的，处五日以上十日以下拘留，可以并处一千元以下罚款：\n（一）组织、教唆、胁迫、诱骗、煽动他人从事邪教活动、会道门活动、非法的宗教活动或\n者利用邪教组织、会道门、迷信活动，扰乱社会秩序、损害他人身体健康的；\n（二）冒用宗教、气功名义进行扰乱社会秩序、损害他人身体健康活动的；\n（三）制作、传播宣扬邪教、会道门内容的物品、信息、资料的。",
+          "title": "中华人民共和国治安管理处罚法"
+        },
+        {
+          "article": "第五十条",
+          "chapter": "第三章 违反治安管理的行为和处罚",
+          "chunk_id": "C-D-cd15f4f1ac12-7ef41f24b9",
+          "document_hash": "cee8d240af947be003fbf177db9129d930bd13757c77d6b45e9a9aedc2faa58a",
+          "document_id": "D-cd15f4f1ac12",
+          "part": "",
+          "section": "第三节 侵犯人身权利、财产权利的行为和处罚",
+          "source_page_end": 10,
+          "source_page_start": 9,
+          "text": "第五十条 有下列行为之一的，处五日以下拘留或者一千元以下罚款；情节较重的，处五日以\n上十日以下拘留，可以并处一千元以下罚款：\n（一）写恐吓信或者以其他方法威胁他人人身安全的；\n（二）公然侮辱他人或者捏造事实诽谤他人的；\n（三）捏造事实诬告陷害他人，企图使他人受到刑事追究或者受到治安管理处罚的；\n（四）对证人及其近亲属进行威胁、侮辱、殴打或者打击报复的；\n（五）多次发送淫秽、侮辱、恐吓等信息或者采取滋扰、纠缠、跟踪等方法，干扰他人正常\n生活的；\n（六）偷窥、偷拍、窃听、散布他人隐私的。\n有前款第五项规定的滋扰、纠缠、跟踪行为的，除依照前款规定给予处罚外，经公安机关负\n责人批准，可以责令其一定期限内禁止接触被侵害人。对违反禁止接触规定的，处五日以上十日\n以下拘留，可以并处一千元以下罚款。",
+          "title": "中华人民共和国治安管理处罚法"
+        },
+        {
+          "article": "第八十三条",
+          "chapter": "第三章 违反治安管理的行为和处罚",
+          "chunk_id": "C-D-cd15f4f1ac12-3e16aae452",
+          "document_hash": "cee8d240af947be003fbf177db9129d930bd13757c77d6b45e9a9aedc2faa58a",
+          "document_id": "D-cd15f4f1ac12",
+          "part": "",
+          "section": "第四节 妨害社会管理的行为和处罚",
+          "source_page_end": 14,
+          "source_page_start": 14,
+          "text": "第八十三条 有下列行为之一的，处十日以上十五日以下拘留，可以并处五千元以下罚款；情\n节较轻的，处五日以下拘留或者一千元以下罚款：\n（一）非法种植罂粟不满五百株或者其他少量毒品原植物的；\n（二）非法买卖、运输、携带、持有少量未经灭活的罂粟等毒品原植物种子或者幼苗的；\n（三）非法运输、买卖、储存、使用少量罂粟壳的。\n有前款第一项行为，在成熟前自行铲除的，不予处罚。",
+          "title": "中华人民共和国治安管理处罚法"
+        }
+      ]
+    },
+    "rejected": [
+      {
+        "article": "第三百八十三条",
+        "law": "criminal_law",
+        "reason": "pure_penalty_provision",
+        "replacement": "第一百八十六条"
+      }
+    ],
+    "seed": 58
+  },
+  "schema_version": "1.0",
+  "summary": {
+    "case_count": 10,
+    "failed_count": 0,
+    "passed_count": 10
+  },
+  "version": "0.58.0"
+}

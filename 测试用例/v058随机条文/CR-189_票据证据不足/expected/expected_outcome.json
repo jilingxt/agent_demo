@@ -22,11 +22,11 @@
       "actor": "测试职员乙",
       "object": "初步损失估算",
       "predicate": "result_exists",
-      "status": "insufficient"
+      "status": "unassessed"
     }
   ],
   "required_issue_types": [
-    "insufficient_evidence"
+    "evidence_insufficiency"
   ],
   "required_legal_articles": [
     "第一百八十九条"

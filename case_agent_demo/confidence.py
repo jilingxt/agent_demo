@@ -34,15 +34,21 @@ class ClaimBuilder:
             )
             if node.polarity == "deny":
                 buckets[key] = replace(claim, opposing_node_ids=[*claim.opposing_node_ids, node.node_id])
-            else:
+            elif node.polarity == "affirm":
                 buckets[key] = replace(claim, supporting_node_ids=[*claim.supporting_node_ids, node.node_id])
+            else:
+                buckets[key] = replace(claim, ambiguous_node_ids=[*claim.ambiguous_node_ids, node.node_id])
 
         edge_ids_by_node = _edge_ids_by_node(graph)
         return [
             replace(
                 claim,
                 related_edge_ids=sorted(
-                    {edge_id for node_id in claim.supporting_node_ids + claim.opposing_node_ids for edge_id in edge_ids_by_node.get(node_id, [])}
+                    {
+                        edge_id
+                        for node_id in claim.supporting_node_ids + claim.opposing_node_ids + claim.ambiguous_node_ids
+                        for edge_id in edge_ids_by_node.get(node_id, [])
+                    }
                 ),
             )
             for claim in buckets.values()

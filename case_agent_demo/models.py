@@ -15,6 +15,8 @@ EDGE_TYPE_SUPPORTS = "supports"
 EDGE_TYPE_CONTRADICTS = "contradicts"
 EDGE_TYPE_NEEDS_HUMAN_CHECK = "needs_human_check"
 
+UNRESOLVED_PREDICATE = "unresolved_observation"
+
 
 class MaterialType(StrEnum):
     STATEMENT = "statement"
@@ -65,8 +67,8 @@ class EvidenceNode:
     location: str = ""
     object: str = ""
     confidence: float = 0.8
-    polarity: str = "affirm"
-    claim_type: str = ""
+    polarity: str = "ambiguous"
+    claim_type: str = UNRESOLVED_PREDICATE
     source_party: str = "unknown"
     observation_type: str = ""
     status: str = "active"
@@ -360,6 +362,13 @@ EvidenceGraph = CaseGraph
 
 
 def fact_to_node(fact: Fact) -> EvidenceNode:
+    metadata = dict(fact.metadata)
+    assertions = metadata.get("assertions")
+    first_assertion = (
+        assertions[0]
+        if isinstance(assertions, list) and assertions and isinstance(assertions[0], dict)
+        else {}
+    )
     return EvidenceNode(
         node_id=fact.fact_id,
         node_type=NODE_TYPE_FACT,
@@ -372,11 +381,15 @@ def fact_to_node(fact: Fact) -> EvidenceNode:
         location=fact.location,
         object=fact.object,
         confidence=fact.confidence,
-        polarity=infer_polarity(fact.behavior),
-        claim_type=infer_claim_type(fact.behavior, fact.object),
+        polarity=str(metadata.get("stance") or first_assertion.get("stance") or "ambiguous"),
+        claim_type=str(
+            metadata.get("predicate")
+            or first_assertion.get("predicate")
+            or UNRESOLVED_PREDICATE
+        ),
         observation_type=fact.source_type,
         human_confirmed=fact.human_confirmed,
-        metadata=dict(fact.metadata),
+        metadata=metadata,
     )
 
 
@@ -397,16 +410,8 @@ def node_to_fact(node: EvidenceNode) -> Fact:
 
 
 def infer_polarity(text: str) -> str:
-    if any(word in text for word in ("疑似", "可能", "不确定", "无法确认")):
-        return "uncertain"
-    denial_phrases = (
-        "没有", "否认", "不承认", "没打", "没拿", "没去",
-        "未实施", "未到场", "未拿取", "未发现", "尚未",
-        "并未欺骗", "未欺骗", "并未虚构", "未虚构",
-    )
-    if any(phrase in text for phrase in denial_phrases):
-        return "deny"
-    return "affirm"
+    del text
+    return "ambiguous"
 
 
 def infer_claim_type(behavior: str, obj: str = "") -> str:
@@ -415,76 +420,13 @@ def infer_claim_type(behavior: str, obj: str = "") -> str:
 
 
 def infer_claim_types(behavior: str, obj: str = "") -> list[str]:
-    text = f"{behavior} {obj}"
-    rules = (
-        ("deceptive_representation", ("虚构", "隐瞒真相", "冒充", "谎称", "欺骗", "骗取", "诈骗")),
-        ("mistaken_belief", ("信以为真", "产生错误认识", "陷入错误认识", "误以为", "误信")),
-        ("property_disposition", ("转账", "汇款", "付款", "支付", "交付财物", "处分财产")),
-        ("property_loss", ("财产损失", "造成损失", "被骗金额", "未返还", "未归还")),
-        ("alternative_cause", ("其他合理原因", "其他合理致伤原因", "其他致伤原因", "另有原因", "自行摔倒")),
-        ("mechanism_compatible", ("机制吻合", "作用机制吻合", "形成机制一致")),
-        ("temporal_proximity", ("时间接近", "立即出现", "紧接着出现")),
-        ("alternative_explanation", ("借用", "误拿", "受托保管", "替代性解释")),
-        ("possession_transfer", ("转移到", "转移占有", "交付后控制", "取得控制")),
-        ("prior_possession", ("原先占有", "保管并占有", "原持有人", "原由其保管")),
-        ("property_trace", ("财物去向", "已被追回", "赃物", "交易记录")),
-        ("persistence_or_group", ("持续起哄", "多人参与", "聚众", "反复实施")),
-        ("operational_impact", ("停止营业", "通行受到影响", "交通中断", "无法办公")),
-        ("public_context", ("公共场所", "车站大厅", "医院大厅", "商场内")),
-        ("public_order_conduct", ("扰乱秩序", "冲闯", "起哄滋事", "妨碍场所秩序")),
-        ("exposure", ("不特定多数人", "暴露范围", "公共区域受威胁")),
-        ("control_failure", ("未采取控制措施", "失去控制", "泄漏且未", "控制失效")),
-        ("hazardous_conduct", ("纵火", "引爆", "投放危险物质", "危险驾驶")),
-        ("dangerous_object_or_condition", ("爆炸物", "危险物质", "易燃易爆", "危险状态")),
-        ("duty_record_present", ("义务文书", "职责记录", "管理义务记录", "岗位职责")),
-        ("qualification_record_present", ("资格证书", "任职证明", "从业资格记录", "资格文书")),
-        ("authorization_record_absent", ("未发现许可证", "无授权记录", "许可证缺失", "授权文件缺失")),
-        ("conduct_recorded", ("行为记录", "执法记录显示", "监控记录显示", "书面记录显示")),
-        ("damage_exists", ("损坏结果", "无法使用", "功能丧失", "维修损失")),
-        ("violence", ("打架", "动手", "殴打", "伤害", "抱摔", "推搡", "掐脖子", "拉拽")),
-        ("injury_consequence", ("轻伤", "重伤", "骨折", "伤情", "鉴定意见", "损伤")),
-        ("property_damage", ("损坏", "毁坏", "砸坏", "摔坏", "破坏")),
-        ("taking_property", ("拿走", "窃取", "盗窃", "非法占有", "拿取", "偷走")),
-        ("presence", ("现场", "出现", "在场", "不在", "在家")),
-    )
-    result = []
-    if any(word in text for word in ("声称", "宣称", "陈述")) and any(
-        word in text for word in ("不存在", "与事实不符", "与登记记录不符")
-    ):
-        result.append("deceptive_representation")
-    result.extend(
-        predicate for predicate, keywords in rules if any(word in text for word in keywords)
-    )
-    return list(dict.fromkeys(result)) or ["general"]
+    del behavior, obj
+    return [UNRESOLVED_PREDICATE]
 
 
 def infer_predicate_stance(text: str, predicate: str) -> str:
-    if predicate == "deceptive_representation":
-        if any(
-            phrase in text
-            for phrase in (
-                "没有欺骗", "并未欺骗", "未欺骗",
-                "没有虚构", "并未虚构", "未虚构", "项目真实",
-            )
-        ):
-            return "deny"
-        if "是否" in text and not any(
-            phrase in text for phrase in ("不存在", "与事实不符", "与登记记录不符")
-        ):
-            return "uncertain"
-        if any(
-            phrase in text
-            for phrase in (
-                "虚构", "隐瞒真相", "谎称", "欺骗",
-                "不存在", "与事实不符", "与登记记录不符",
-            )
-        ):
-            return "affirm"
-    if predicate == "alternative_cause" and any(
-        phrase in text for phrase in ("排除", "不存在其他", "无其他合理", "未发现其他")
-    ):
-        return "deny"
-    return infer_polarity(text)
+    del text, predicate
+    return "ambiguous"
 
 
 @dataclass(frozen=True)

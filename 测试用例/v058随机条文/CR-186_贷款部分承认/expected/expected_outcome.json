@@ -22,11 +22,11 @@
       "actor": "测试审批员甲",
       "object": "测试借款主体A",
       "predicate": "related_party_status",
-      "status": "insufficient"
+      "status": "opposing_dominant"
     }
   ],
   "required_issue_types": [
-    "insufficient_evidence"
+    "opposing_evidence_dominant"
   ],
   "required_legal_articles": [
     "第一百八十六条"

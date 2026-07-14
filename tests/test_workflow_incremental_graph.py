@@ -2,11 +2,16 @@ import unittest
 
 from case_agent_demo.models import Material, MaterialType
 from case_agent_demo.workflow import CaseWorkflow
+from tests.semantic_runtime import SemanticFixtureRuntime, semantic_fact
 
 
 class WorkflowIncrementalGraphTests(unittest.TestCase):
     def test_workflow_builds_graph_nodes_edges_and_claims_incrementally(self):
         workflow = CaseWorkflow.demo()
+        workflow.text_agent.runtime = SemanticFixtureRuntime({
+            "S1": [semantic_fact(actor="张三", predicate="taking_property", behavior="张三取得手机", object="手机", event_id="E1")],
+            "S2": [semantic_fact(actor="张三", predicate="property_trace", behavior="张三归还手机", object="手机", event_id="E1")],
+        })
         materials = [
             Material("S1", MaterialType.STATEMENT, "张三称20时在现场拿走手机。"),
             Material("S2", MaterialType.STATEMENT, "张三称21时在现场归还手机。"),
@@ -28,6 +33,9 @@ class WorkflowIncrementalGraphTests(unittest.TestCase):
 
     def test_workflow_accepts_explicit_authority_verification_for_forensic_report(self):
         workflow = CaseWorkflow.demo()
+        workflow.report_image_agent.runtime = SemanticFixtureRuntime({
+            "R1": [semantic_fact(actor="李四", target_person="李四", predicate="injury_grade", behavior="李四的损伤被评定为轻伤二级", evidence_category="report_image", fact_id="F-R1-REPORT")]
+        })
         materials = [
             Material(
                 "R1",
@@ -60,7 +68,7 @@ class WorkflowIncrementalGraphTests(unittest.TestCase):
         self.assertEqual(result.bayesian_result["runs"], [])
         self.assertEqual(
             result.bayesian_result["abstentions"][0]["reason"],
-            "missing_allegation_anchor",
+            "no_matching_relation_component",
         )
 
 
