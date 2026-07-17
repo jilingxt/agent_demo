@@ -3,6 +3,7 @@ import unittest
 from case_agent_demo.agents import PicAgent, ReasoningAgent, ReportImageAgent, TextAgent
 from case_agent_demo.models import CaseGraph, Material, MaterialType
 from case_agent_demo.vision_tools import ImageEvidenceDescription
+from tests.semantic_runtime import SemanticFixtureRuntime, semantic_fact
 
 
 class FactRefinementTests(unittest.TestCase):
@@ -19,7 +20,7 @@ class FactRefinementTests(unittest.TestCase):
             "问：贺显作的伤是如何造成的？\n"
             "答：是我把他抱摔在地上撞击地面造成的。"
         )
-        facts = TextAgent().extract(Material("S-li", MaterialType.STATEMENT, content))
+        facts = TextAgent(runtime=SemanticFixtureRuntime({"S-li": [semantic_fact(actor="李文杰", target_person="贺显作", predicate="violence", behavior="李文杰将贺显作抱摔在地并致其受伤", declarant="李文杰", object="贺显作受伤", time="2026年6月12日17时许", location="深圳市宝安区新凯飞汽配")]})).extract(Material("S-li", MaterialType.STATEMENT, content))
 
         self.assertEqual(len(facts), 1)
         fact = facts[0]
@@ -43,7 +44,10 @@ class FactRefinementTests(unittest.TestCase):
             "答：贺显作眼角当时有肿包流血。"
         )
 
-        facts = TextAgent().extract(Material("S-li", MaterialType.STATEMENT, content))
+        facts = TextAgent(runtime=SemanticFixtureRuntime({"S-li": [
+            semantic_fact(actor="李文杰", target_person="贺显作", predicate="property_damage", behavior="李文杰损坏贺显作的手机", declarant="李文杰", object="手机"),
+            semantic_fact(actor="李文杰", target_person="贺显作", predicate="violence", behavior="李文杰称没有打架", stance="deny", declarant="李文杰", object="贺显作"),
+        ]})).extract(Material("S-li", MaterialType.STATEMENT, content))
 
         self.assertTrue(any("没有打架" in fact.behavior for fact in facts))
         self.assertTrue(any(fact.object == "贺显作" for fact in facts if "没有打架" in fact.behavior))
@@ -62,7 +66,10 @@ class FactRefinementTests(unittest.TestCase):
             "答：属实。"
         )
 
-        facts = TextAgent().extract(Material("S-he", MaterialType.STATEMENT, content))
+        facts = TextAgent(runtime=SemanticFixtureRuntime({"S-he": [
+            semantic_fact(actor="李文杰", target_person="贺显作", predicate="property_damage", behavior="李文杰摔坏贺显作的手机", declarant="贺显作", object="手机"),
+            semantic_fact(actor="贺显作", target_person="李文杰", predicate="violence", behavior="贺显作称双方没有动手", stance="deny", declarant="贺显作"),
+        ]})).extract(Material("S-he", MaterialType.STATEMENT, content))
 
         self.assertGreaterEqual(len(facts), 2)
         self.assertTrue(all(len(fact.behavior) < 120 for fact in facts))
@@ -80,7 +87,7 @@ class FactRefinementTests(unittest.TestCase):
                 )
 
         material = Material("P1", MaterialType.EVIDENCE_IMAGE, "待 Qwen 识别", "image.jpg")
-        fact = PicAgent(vision_tool=FakeVisionTool()).extract(material)[0]
+        fact = PicAgent(vision_tool=FakeVisionTool(), runtime=SemanticFixtureRuntime({"P1": [semantic_fact(actor="李文杰", target_person="贺显作", predicate="violence", behavior="李文杰在车间将贺显作抱摔在地", time="2026年6月12日17时许", location="新凯飞汽配", evidence_category="evidence_image", confidence=0.94)]})).extract(material)[0]
 
         self.assertIn("李文杰", fact.behavior)
         self.assertIn("抱摔", fact.behavior)
@@ -96,7 +103,7 @@ class FactRefinementTests(unittest.TestCase):
             "鉴定意见：被鉴定人贺显作所受的损伤为轻伤二级。"
             "2026年6月17日。司法鉴定人 曾拥军 郑杏斌。"
         )
-        fact = ReportImageAgent().extract(Material("R1", MaterialType.REPORT_IMAGE, content))[0]
+        fact = ReportImageAgent(runtime=SemanticFixtureRuntime({"R1": [semantic_fact(actor="贺显作", predicate="injury_grade", behavior="贺显作所受损伤为轻伤二级", declarant="贺显作", object="双侧鼻骨、鼻中隔骨折", evidence_category="report_image", confidence=0.93)]})).extract(Material("R1", MaterialType.REPORT_IMAGE, content))[0]
 
         self.assertEqual(fact.person, "贺显作")
         self.assertIn("轻伤二级", fact.behavior)
@@ -116,7 +123,7 @@ class FactRefinementTests(unittest.TestCase):
             "答：没有。\n"
         )
 
-        facts = TextAgent().extract(Material("S-he", MaterialType.STATEMENT, content))
+        facts = TextAgent(runtime=SemanticFixtureRuntime({"S-he": [semantic_fact(actor="李文杰", target_person="贺显作", predicate="property_damage", behavior="李文杰摔坏贺显作的手机并造成损坏", declarant="贺显作", object="手机", time="2026年6月12日", location="深圳市宝安区新凯飞汽配")]})).extract(Material("S-he", MaterialType.STATEMENT, content))
         main_fact = facts[0]
 
         self.assertLess(len(main_fact.behavior), 60)
@@ -136,7 +143,7 @@ class FactRefinementTests(unittest.TestCase):
             "他骂我，我就到他工位把他的手机摔坏了。之后我报警。\n"
         )
 
-        fact = TextAgent().extract(Material("S-li", MaterialType.STATEMENT, content))[0]
+        fact = TextAgent(runtime=SemanticFixtureRuntime({"S-li": [semantic_fact(actor="李文杰", target_person="贺显作", predicate="property_damage", behavior="李文杰摔坏贺显作的手机", declarant="李文杰", object="手机")]})).extract(Material("S-li", MaterialType.STATEMENT, content))[0]
 
         self.assertIn("李文杰", fact.behavior)
         self.assertNotIn("贺显作摔坏", fact.behavior)
@@ -145,7 +152,7 @@ class FactRefinementTests(unittest.TestCase):
     def test_reasoning_uses_structured_fields_instead_of_full_copy(self):
         graph = CaseGraph(
             facts=[
-                TextAgent().extract(
+                TextAgent(runtime=SemanticFixtureRuntime({"S-li": [semantic_fact(actor="李文杰", target_person="贺显作", predicate="violence", behavior="李文杰抱摔贺显作致其受伤", declarant="李文杰", time="2026年6月12日17时许", location="深圳市宝安区新凯飞汽配")]})).extract(
                     Material(
                         "S-li",
                         MaterialType.STATEMENT,

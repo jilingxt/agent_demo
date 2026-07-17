@@ -1,0 +1,35 @@
+{
+  "case_id": "CR-185",
+  "expected_abstention": false,
+  "expected_bayesian_models": [
+    "status_duty"
+  ],
+  "forbidden_claims": [],
+  "forbidden_final_conclusions": [
+    "已构成犯罪",
+    "已构成违法",
+    "应当处罚",
+    "应判处"
+  ],
+  "required_claims": [
+    {
+      "actor": "测试职员甲",
+      "object": "测试资金批次A",
+      "predicate": "conduct_recorded",
+      "status": "supported"
+    },
+    {
+      "actor": "测试职员甲",
+      "predicate": "authorization_record_absent",
+      "status": "opposing_dominant"
+    }
+  ],
+  "required_issue_types": [
+    "opposing_evidence_dominant"
+  ],
+  "required_legal_articles": [
+    "第一百八十五条"
+  ],
+  "schema_version": "0.58",
+  "synthetic_notice": "合成测试材料，仅用于系统验证，不对应真实人员、单位或案件"
+}

@@ -1,0 +1,22 @@
+{
+  "case_id": "CASE-OPEN-001",
+  "materials": [
+    {"material_id": "OPEN-S-REPORTER", "material_type": "statement", "path": "statements/报警人笔录.txt"},
+    {"material_id": "OPEN-S-ACTOR", "material_type": "statement", "path": "statements/被指认人陈述.txt"},
+    {"material_id": "OPEN-R-TRANSFER", "material_type": "report_image", "path": "reports/交易记录.txt"},
+    {"material_id": "OPEN-R-PROJECT", "material_type": "report_image", "path": "reports/项目核查记录.txt"}
+  ],
+  "expected": {
+    "bayesian_models": ["deception_disposition"],
+    "bayesian_run_count": 1,
+    "derived_min": {"disposition_link": 0.40},
+    "primary_claim": {
+      "subject": "李大海",
+      "predicate": "deceptive_representation",
+      "target": "王小明",
+      "min_sources": 2,
+      "status": "contested"
+    },
+    "must_include_articles": ["第二百六十六条"]
+  }
+}

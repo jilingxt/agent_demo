@@ -1,0 +1,36 @@
+{
+  "case_id": "CR-189",
+  "expected_abstention": false,
+  "expected_bayesian_models": [
+    "status_duty"
+  ],
+  "forbidden_claims": [],
+  "forbidden_final_conclusions": [
+    "已构成犯罪",
+    "已构成违法",
+    "应当处罚",
+    "应判处"
+  ],
+  "required_claims": [
+    {
+      "actor": "测试职员乙",
+      "object": "测试票据A",
+      "predicate": "conduct_recorded",
+      "status": "supported"
+    },
+    {
+      "actor": "测试职员乙",
+      "object": "初步损失估算",
+      "predicate": "result_exists",
+      "status": "unassessed"
+    }
+  ],
+  "required_issue_types": [
+    "evidence_insufficiency"
+  ],
+  "required_legal_articles": [
+    "第一百八十九条"
+  ],
+  "schema_version": "0.58",
+  "synthetic_notice": "合成测试材料，仅用于系统验证，不对应真实人员、单位或案件"
+}

@@ -1,0 +1,37 @@
+{
+  "article": "第五十条",
+  "authority_verifications": [],
+  "case_id": "PS-50",
+  "case_type": "电子通信行为核查",
+  "complexity_type": "actor_attribution_dispute",
+  "law_key": "public_security_law",
+  "law_title": "中华人民共和国治安管理处罚法",
+  "materials": [
+    {
+      "material_id": "M-PS-50-S1",
+      "material_type": "statement",
+      "path": "statements/测试人员辛笔录.docx",
+      "role": "reporting_party",
+      "title": "信息接收人员询问笔录"
+    },
+    {
+      "material_id": "M-PS-50-S2",
+      "material_type": "statement",
+      "path": "statements/测试人员庚笔录.docx",
+      "role": "alleged_actor",
+      "title": "被指认人员询问笔录"
+    },
+    {
+      "material_id": "M-PS-50-R1",
+      "material_type": "report_image",
+      "path": "reports/电子数据核查报告.docx",
+      "role": "synthetic_report",
+      "title": "电子数据核查报告"
+    }
+  ],
+  "provision_text": "第五十条 有下列行为之一的，处五日以下拘留或者一千元以下罚款；情节较重的，处五日以\n上十日以下拘留，可以并处一千元以下罚款：\n（一）写恐吓信或者以其他方法威胁他人人身安全的；\n（二）公然侮辱他人或者捏造事实诽谤他人的；\n（三）捏造事实诬告陷害他人，企图使他人受到刑事追究或者受到治安管理处罚的；\n（四）对证人及其近亲属进行威胁、侮辱、殴打或者打击报复的；\n（五）多次发送淫秽、侮辱、恐吓等信息或者采取滋扰、纠缠、跟踪等方法，干扰他人正常\n生活的；\n（六）偷窥、偷拍、窃听、散布他人隐私的。\n有前款第五项规定的滋扰、纠缠、跟踪行为的，除依照前款规定给予处罚外，经公安机关负\n责人批准，可以责令其一定期限内禁止接触被侵害人。对违反禁止接触规定的，处五日以上十日\n以下拘留，可以并处一千元以下罚款。",
+  "schema_version": "0.58",
+  "short_name": "账号归属争议",
+  "summary": "信息内容客观存在，但账号标识、设备使用者和实际发送人是不同事实。",
+  "synthetic_notice": "合成测试材料，仅用于系统验证，不对应真实人员、单位或案件"
+}

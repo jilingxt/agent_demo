@@ -1,0 +1,37 @@
+{
+  "article": "第五十二条",
+  "authority_verifications": [],
+  "case_id": "PS-52",
+  "case_type": "公共场所行为争议",
+  "complexity_type": "alternative_explanation",
+  "law_key": "public_security_law",
+  "law_title": "中华人民共和国治安管理处罚法",
+  "materials": [
+    {
+      "material_id": "M-PS-52-S1",
+      "material_type": "statement",
+      "path": "statements/测试成年人己笔录.docx",
+      "role": "reporting_party",
+      "title": "相关人员询问笔录"
+    },
+    {
+      "material_id": "M-PS-52-S2",
+      "material_type": "statement",
+      "path": "statements/测试人员戊笔录.docx",
+      "role": "alleged_actor",
+      "title": "被指认人员询问笔录"
+    },
+    {
+      "material_id": "M-PS-52-R1",
+      "material_type": "report_image",
+      "path": "reports/影像与求助记录核查报告.docx",
+      "role": "synthetic_report",
+      "title": "影像与求助记录核查报告"
+    }
+  ],
+  "provision_text": "第五十二条 猥亵他人的，处五日以上十日以下拘留；猥亵精神病人、智力残疾人、不满十四\n周岁的人或者有其他严重情节的，处十日以上十五日以下拘留。\n在公共场所故意裸露身体隐私部位的，处警告或者五百元以下罚款；情节恶劣的，处五日以\n上十日以下拘留。",
+  "schema_version": "0.58",
+  "short_name": "行为与医疗解释",
+  "summary": "目击印象和模糊影像不足以确认特定行为，另有可核查的突发医疗处置解释。",
+  "synthetic_notice": "合成测试材料，仅用于系统验证，不对应真实人员、单位或案件"
+}

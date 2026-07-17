@@ -1,0 +1,16 @@
+{
+  "rules": [
+    {
+      "id": "verified_forensic_injury_grade",
+      "issuers": ["qualified_forensic_institution"],
+      "document_types": [
+        "forensic_injury_grade_report",
+        "forensic_injury_reappraisal"
+      ],
+      "predicates": ["injury_exists", "injury_grade"],
+      "mean": 0.99,
+      "strength": 50.0,
+      "requires_human_verification": true
+    }
+  ]
+}

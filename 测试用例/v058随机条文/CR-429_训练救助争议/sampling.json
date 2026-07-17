@@ -1,0 +1,20 @@
+{
+  "law_key": "criminal_law",
+  "pool_size": 402,
+  "schema_version": "1.0",
+  "seed": 58,
+  "selected_provision": {
+    "article": "第四百二十九条",
+    "chapter": "第十章 军人违反职责罪",
+    "chunk_id": "C-D-6024525a467e-b774c145ba",
+    "document_hash": "74ec867761610dccaca1d380f6dad0f2de80ea8821a86854d40bbf2564ba63a4",
+    "document_id": "D-6024525a467e",
+    "part": "第二编 分则",
+    "section": "",
+    "source_page_end": 68,
+    "source_page_start": 68,
+    "text": "第四百二十九条 在战场上明知友邻部队处境危急请求救援，能救援而不救援，致使友邻部队\n遭受重大损失的，对指挥人员，处五年以下有期徒刑。",
+    "title": "中华人民共和国刑法"
+  },
+  "synthetic_notice": "合成测试材料，仅用于系统验证，不对应真实人员、单位或案件"
+}

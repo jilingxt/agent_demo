@@ -1,0 +1,37 @@
+{
+  "article": "第八十三条",
+  "authority_verifications": [],
+  "case_id": "PS-83",
+  "case_type": "禁止种植物核查",
+  "complexity_type": "statutory_exception",
+  "law_key": "public_security_law",
+  "law_title": "中华人民共和国治安管理处罚法",
+  "materials": [
+    {
+      "material_id": "M-PS-83-S1",
+      "material_type": "statement",
+      "path": "statements/发现人员笔录.docx",
+      "role": "reporting_party",
+      "title": "发现人员询问笔录"
+    },
+    {
+      "material_id": "M-PS-83-S2",
+      "material_type": "statement",
+      "path": "statements/测试种植者甲笔录.docx",
+      "role": "alleged_actor",
+      "title": "相关人员询问笔录"
+    },
+    {
+      "material_id": "M-PS-83-R1",
+      "material_type": "report_image",
+      "path": "reports/现场检查与植物检验报告.docx",
+      "role": "synthetic_report",
+      "title": "现场检查与植物检验报告"
+    }
+  ],
+  "provision_text": "第八十三条 有下列行为之一的，处十日以上十五日以下拘留，可以并处五千元以下罚款；情\n节较轻的，处五日以下拘留或者一千元以下罚款：\n（一）非法种植罂粟不满五百株或者其他少量毒品原植物的；\n（二）非法买卖、运输、携带、持有少量未经灭活的罂粟等毒品原植物种子或者幼苗的；\n（三）非法运输、买卖、储存、使用少量罂粟壳的。\n有前款第一项行为，在成熟前自行铲除的，不予处罚。",
+  "schema_version": "0.58",
+  "short_name": "主动清除例外",
+  "summary": "种植事实和主动清除事实均被承认并有记录支持，法律例外与处罚结论仍留给人工审查。",
+  "synthetic_notice": "合成测试材料，仅用于系统验证，不对应真实人员、单位或案件"
+}

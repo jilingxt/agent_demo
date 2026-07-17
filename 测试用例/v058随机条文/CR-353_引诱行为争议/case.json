@@ -1,0 +1,37 @@
+{
+  "article": "第三百五十三条",
+  "authority_verifications": [],
+  "case_id": "CR-353",
+  "case_type": "涉管制物质行为线索",
+  "complexity_type": "direct_denial",
+  "law_key": "criminal_law",
+  "law_title": "中华人民共和国刑法",
+  "materials": [
+    {
+      "material_id": "M-CR-353-S1",
+      "material_type": "statement",
+      "path": "statements/相关人员乙笔录.docx",
+      "role": "reporting_party",
+      "title": "相关人员询问笔录"
+    },
+    {
+      "material_id": "M-CR-353-S2",
+      "material_type": "statement",
+      "path": "statements/测试人员甲笔录.docx",
+      "role": "alleged_actor",
+      "title": "被指认人员询问笔录"
+    },
+    {
+      "material_id": "M-CR-353-R1",
+      "material_type": "report_image",
+      "path": "reports/电子数据研判报告.docx",
+      "role": "synthetic_report",
+      "title": "电子数据研判报告"
+    }
+  ],
+  "provision_text": "第三百五十三条 引诱、教唆、欺骗他人吸食、注射毒品的，处三年以下有期徒刑、拘役或者\n管制，并处罚金；情节严重的，处三年以上七年以下有期徒刑，并处罚金。\n强迫他人吸食、注射毒品的，处三年以上十年以下有期徒刑，并处罚金。\n引诱、教唆、欺骗或者强迫未成年人吸食、注射毒品的，从重处罚。",
+  "schema_version": "0.58",
+  "short_name": "引诱行为争议",
+  "summary": "摄入事实有客观材料支持，但谁实施引诱、是否存在明确引诱行为仍有直接冲突。",
+  "synthetic_notice": "合成测试材料，仅用于系统验证，不对应真实人员、单位或案件"
+}

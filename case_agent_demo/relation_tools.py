@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from case_agent_demo.models import EvidenceEdge, EvidenceNode
+from case_agent_demo.models import EvidenceEdge, EvidenceNode, UNRESOLVED_PREDICATE
 
 
 class RelationRuleTool:
@@ -81,11 +81,15 @@ def _same_event(left: EvidenceNode, right: EvidenceNode) -> bool:
 
 
 def _is_denial(node: EvidenceNode) -> bool:
-    return any(word in f"{node.summary}{node.behavior}" for word in ("没有", "未", "否认", "不承认", "没"))
+    return node.polarity == "deny"
 
 
 def _is_contradiction(left: EvidenceNode, right: EvidenceNode) -> bool:
-    if _is_denial(left) == _is_denial(right):
+    if UNRESOLVED_PREDICATE in {left.claim_type, right.claim_type}:
+        return False
+    if left.claim_type != right.claim_type:
+        return False
+    if {left.polarity, right.polarity} != {"affirm", "deny"}:
         return False
     if not (_overlaps(left.object, right.object) or (left.person and left.person == right.person)):
         return False
@@ -93,6 +97,10 @@ def _is_contradiction(left: EvidenceNode, right: EvidenceNode) -> bool:
 
 
 def _supports(left: EvidenceNode, right: EvidenceNode) -> bool:
+    if UNRESOLVED_PREDICATE in {left.claim_type, right.claim_type}:
+        return False
+    if left.claim_type != right.claim_type or {left.polarity, right.polarity} != {"affirm"}:
+        return False
     source_types = {left.source_type, right.source_type}
     if not ({"report_image", "evidence_image"} & source_types):
         return False

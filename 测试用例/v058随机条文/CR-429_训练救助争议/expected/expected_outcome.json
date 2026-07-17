@@ -1,0 +1,33 @@
+{
+  "case_id": "CR-429",
+  "expected_abstention": true,
+  "expected_bayesian_models": [],
+  "forbidden_claims": [],
+  "forbidden_final_conclusions": [
+    "已构成犯罪",
+    "已构成违法",
+    "应当处罚",
+    "应判处"
+  ],
+  "required_claims": [
+    {
+      "actor": "测试队员甲",
+      "predicate": "non_rescue_conduct",
+      "status": "insufficient",
+      "target_person": "测试队员乙"
+    },
+    {
+      "actor": "训练组织方",
+      "predicate": "battlefield_context",
+      "status": "opposing_dominant"
+    }
+  ],
+  "required_issue_types": [
+    "legal_element_missing"
+  ],
+  "required_legal_articles": [
+    "第四百二十九条"
+  ],
+  "schema_version": "0.58",
+  "synthetic_notice": "合成测试材料，仅用于系统验证，不对应真实人员、单位或案件"
+}

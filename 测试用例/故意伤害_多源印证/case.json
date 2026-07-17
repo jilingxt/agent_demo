@@ -1,0 +1,33 @@
+{
+  "case_id": "CASE-INJURY-001",
+  "case_type": "故意伤害类案件",
+  "materials": [
+    {"material_id": "INJ-S-VICTIM", "material_type": "statement", "path": "statements/被害人笔录.txt"},
+    {"material_id": "INJ-S-ACTOR", "material_type": "statement", "path": "statements/行为人笔录.txt"},
+    {"material_id": "INJ-S-WITNESS", "material_type": "statement", "path": "statements/证人证言.txt"},
+    {"material_id": "INJ-R-VIDEO", "material_type": "report_image", "path": "reports/监控研判报告.txt"},
+    {"material_id": "INJ-R-FORENSIC", "material_type": "report_image", "path": "reports/法医鉴定意见.txt"}
+  ],
+  "authority_verifications": {
+    "INJ-R-FORENSIC": {
+      "issuer": "qualified_forensic_institution",
+      "document_type": "forensic_injury_grade_report",
+      "competence_verified": true,
+      "authenticity_verified": true,
+      "procedure_verified": true,
+      "subject_identity_verified": true,
+      "method_verified": true,
+      "standard_verified": true,
+      "scope_verified": true,
+      "human_verified": true
+    }
+  },
+  "expected": {
+    "bayesian_models": ["conduct_result"],
+    "bayesian_run_count": 1,
+    "derived_min": {"causation": 0.5},
+    "primary_claim": {"subject": "李文杰", "predicate": "violence", "target": "贺显作", "min_sources": 4, "status": "supported"},
+    "must_include_articles": ["第二百三十四条", "第五十一条"],
+    "must_exclude_articles": ["第二百九十三条", "第二百三十九条", "第三百零五条", "第三十条", "第五十条"]
+  }
+}

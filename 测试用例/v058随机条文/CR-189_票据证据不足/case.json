@@ -1,0 +1,37 @@
+{
+  "article": "第一百八十九条",
+  "authority_verifications": [],
+  "case_id": "CR-189",
+  "case_type": "票据业务核查",
+  "complexity_type": "evidence_insufficient",
+  "law_key": "criminal_law",
+  "law_title": "中华人民共和国刑法",
+  "materials": [
+    {
+      "material_id": "M-CR-189-S1",
+      "material_type": "statement",
+      "path": "statements/业务主管笔录.docx",
+      "role": "reporting_party",
+      "title": "业务主管询问笔录"
+    },
+    {
+      "material_id": "M-CR-189-S2",
+      "material_type": "statement",
+      "path": "statements/测试职员乙笔录.docx",
+      "role": "alleged_actor",
+      "title": "经办人员询问笔录"
+    },
+    {
+      "material_id": "M-CR-189-R1",
+      "material_type": "report_image",
+      "path": "reports/票据业务核查报告.docx",
+      "role": "synthetic_report",
+      "title": "票据业务核查报告"
+    }
+  ],
+  "provision_text": "第一百八十九条 银行或者其他金融机构的工作人员在票据业务中，对违反票据法规定的票据\n予以承兑、付款或者保证，造成重大损失的，处五年以下有期徒刑或者拘役；造成特别重大损失\n的，处五年以上有期徒刑。\n单位犯前款罪的，对单位判处罚金，并对其直接负责的主管人员和其他直接责任人员，依照\n前款的规定处罚。",
+  "schema_version": "0.58",
+  "short_name": "票据证据不足",
+  "summary": "经办行为可以确认，但规则违反、个人责任、因果关系和重大损失均缺少充分材料。",
+  "synthetic_notice": "合成测试材料，仅用于系统验证，不对应真实人员、单位或案件"
+}

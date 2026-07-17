@@ -1,0 +1,37 @@
+{
+  "article": "第一百八十五条",
+  "authority_verifications": [],
+  "case_id": "CR-185",
+  "case_type": "机构资金使用争议",
+  "complexity_type": "business_authorization_dispute",
+  "law_key": "criminal_law",
+  "law_title": "中华人民共和国刑法",
+  "materials": [
+    {
+      "material_id": "M-CR-185-S1",
+      "material_type": "statement",
+      "path": "statements/核查人员笔录.docx",
+      "role": "reporting_party",
+      "title": "核查人员询问笔录"
+    },
+    {
+      "material_id": "M-CR-185-S2",
+      "material_type": "statement",
+      "path": "statements/测试职员甲笔录.docx",
+      "role": "alleged_actor",
+      "title": "相关职员询问笔录"
+    },
+    {
+      "material_id": "M-CR-185-R1",
+      "material_type": "report_image",
+      "path": "reports/资金流水核查报告.docx",
+      "role": "synthetic_report",
+      "title": "资金流水核查报告"
+    }
+  ],
+  "provision_text": "第一百八十五条 商业银行、证券交易所、期货交易所、证券公司、期货经纪公司、保险公司\n或者其他金融机构的工作人员利用职务上的便利，挪用本单位或者客户资金的，依照本法第二百\n七十二条的规定定罪处罚。\n国有商业银行、证券交易所、期货交易所、证券公司、期货经纪公司、保险公司或者其他国\n有金融机构的工作人员和国有商业银行、证券交易所、期货交易所、证券公司、期货经纪公司、\n保险公司或者其他国有金融机构委派到前款规定中的非国有机构从事公务的人员有前款行为的，\n依照本法第三百八十四条的规定定罪处罚。",
+  "schema_version": "0.58",
+  "short_name": "资金授权争议",
+  "summary": "资金划转和岗位权限有记录，但是否超越授权及是否属于挪用不能仅由流水推出。",
+  "synthetic_notice": "合成测试材料，仅用于系统验证，不对应真实人员、单位或案件"
+}

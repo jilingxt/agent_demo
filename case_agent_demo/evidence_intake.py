@@ -107,7 +107,13 @@ class EvidenceIntake:
             status = "text_extracted" if not content.startswith("PDF笔录待文本提取") else "needs_text_extraction"
             extracted_path = ""
         return (
-            Material(material_id, MaterialType.STATEMENT, content.strip(), source_path=str(path)),
+            Material(
+                material_id,
+                MaterialType.STATEMENT,
+                content.strip(),
+                source_path=str(path),
+                metadata={"declarant_role": ""},
+            ),
             EvidenceRecord(
                 material_id=material_id,
                 material_type=MaterialType.STATEMENT.value,
@@ -138,7 +144,13 @@ class EvidenceIntake:
             status = "text_extracted" if not content.startswith("PDF") else "needs_text_extraction"
             extracted_path = ""
         return (
-            Material(material_id, MaterialType.REPORT_IMAGE, content.strip(), source_path=str(path)),
+            Material(
+                material_id,
+                MaterialType.REPORT_IMAGE,
+                content.strip(),
+                source_path=str(path),
+                metadata={"evidence_category": "report_material"},
+            ),
             EvidenceRecord(
                 material_id=material_id,
                 material_type=MaterialType.REPORT_IMAGE.value,
@@ -165,7 +177,20 @@ class EvidenceIntake:
             status = "extracted_override"
             extracted_path = str(self._extracted_path(path))
         return (
-            Material(material_id, material_type, content.strip(), source_path=str(path)),
+            Material(
+                material_id,
+                material_type,
+                content.strip(),
+                source_path=str(path),
+                metadata={
+                    "evidence_category": (
+                        "identification"
+                        if material_type == MaterialType.EVIDENCE_IMAGE
+                        else "report_image"
+                    ),
+                    "group_id": group_id,
+                },
+            ),
             EvidenceRecord(
                 material_id=material_id,
                 material_type=material_type.value,

@@ -1,0 +1,19 @@
+{
+  "case_id": "CASE-THEFT-001",
+  "case_type": "盗窃类案件",
+  "materials": [
+    {"material_id": "THEFT-S-OWNER", "material_type": "statement", "path": "statements/占有人笔录.txt"},
+    {"material_id": "THEFT-S-ACTOR", "material_type": "statement", "path": "statements/行为人笔录.txt"},
+    {"material_id": "THEFT-S-WITNESS", "material_type": "statement", "path": "statements/证人证言.txt"},
+    {"material_id": "THEFT-R-VIDEO", "material_type": "report_image", "path": "reports/监控研判报告.txt"},
+    {"material_id": "THEFT-R-TRACE", "material_type": "report_image", "path": "reports/扣押发还记录.txt"}
+  ],
+  "expected": {
+    "bayesian_models": ["property_taking"],
+    "bayesian_run_count": 1,
+    "derived_min": {"taking_supported": 0.5},
+    "primary_claim": {"subject": "赵强", "predicate": "taking_property", "target": "手机", "min_sources": 4, "status": "supported"},
+    "must_include_articles": ["第二百六十四条", "第五十八条"],
+    "must_exclude_articles": ["第二百七十五条", "第五十九条", "第三十九条", "第四十条", "第四十三条"]
+  }
+}

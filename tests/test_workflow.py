@@ -2,11 +2,25 @@ import unittest
 
 from case_agent_demo.workflow import CaseWorkflow, HumanConfirmationRequired
 from case_agent_demo.models import Material, MaterialType
+from tests.semantic_runtime import SemanticFixtureRuntime, semantic_fact
+
+
+def _workflow_with_facts(facts_by_material_id):
+    workflow = CaseWorkflow.demo()
+    runtime = SemanticFixtureRuntime(facts_by_material_id)
+    workflow.text_agent.runtime = runtime
+    workflow.pic_agent.runtime = runtime
+    workflow.report_image_agent.runtime = runtime
+    return workflow
 
 
 class CaseWorkflowTests(unittest.TestCase):
-    def test_requires_human_case_type_before_execution(self):
-        workflow = CaseWorkflow.demo()
+    def test_human_case_type_gate_is_available_only_in_explicit_strict_mode(self):
+        workflow = _workflow_with_facts({
+            "S1": [semantic_fact(actor="张三", predicate="presence", behavior="张三称其不在现场", stance="deny", object="现场")],
+            "P1": [semantic_fact(actor="张三", predicate="presence", behavior="图片无法独立确认身份", stance="ambiguous", object="现场", evidence_category="evidence_image")],
+            "R1": [semantic_fact(actor="张三", predicate="presence", behavior="记录显示张三在现场", stance="affirm", object="现场", evidence_category="report_image")],
+        })
         materials = [
             Material(
                 material_id="S1",
@@ -19,10 +33,10 @@ class CaseWorkflowTests(unittest.TestCase):
 
         self.assertTrue(suggestion.requires_human_confirmation)
         with self.assertRaises(HumanConfirmationRequired):
-            workflow.run(materials)
+            workflow.run(materials, require_human_confirmation=True)
 
     def test_confirmed_run_records_material_plan_before_extraction(self):
-        workflow = CaseWorkflow.demo()
+        workflow = _workflow_with_facts({"R1": [semantic_fact(actor="张三", predicate="presence", behavior="记录显示张三在现场", declarant="张三", evidence_category="report_image")]})
         materials = [
             Material("S1", MaterialType.STATEMENT, "张三称20时在家。", "vault/statements/S1.txt"),
             Material("S2", MaterialType.STATEMENT, "李四称20时在现场。", "vault/statements/S2.txt"),
@@ -47,7 +61,10 @@ class CaseWorkflowTests(unittest.TestCase):
 
                 return ImageEvidenceDescription(pic=f"{group_id} image description", text="", confidence=0.95)
 
-        workflow = CaseWorkflow.demo()
+        workflow = _workflow_with_facts({
+            "S1": [semantic_fact(actor="张三", predicate="presence", behavior="张三称其不在现场", stance="deny", object="现场")],
+            "R1": [semantic_fact(actor="张三", predicate="presence", behavior="记录显示张三在现场", stance="affirm", object="现场", evidence_category="report_image")],
+        })
         vision_tool = RecordingVisionTool()
         workflow.pic_agent.vision_tool = vision_tool
         materials = [
@@ -63,7 +80,11 @@ class CaseWorkflowTests(unittest.TestCase):
         self.assertNotIn("pic_agent", result.executed_agents)
 
     def test_confirmed_case_type_runs_report_image_agent_and_builds_report(self):
-        workflow = CaseWorkflow.demo()
+        workflow = _workflow_with_facts({
+            "S1": [semantic_fact(actor="张三", predicate="presence", behavior="张三称其不在现场", stance="deny", object="现场")],
+            "P1": [semantic_fact(actor="张三", predicate="presence", behavior="图片无法独立确认身份", stance="ambiguous", object="现场", evidence_category="evidence_image")],
+            "R1": [semantic_fact(actor="张三", predicate="presence", behavior="记录显示张三在现场", stance="affirm", object="现场", evidence_category="report_image")],
+        })
         materials = [
             Material(
                 material_id="S1",
@@ -134,7 +155,7 @@ class CaseWorkflowTests(unittest.TestCase):
         self.assertTrue(any("最终性法律判断" in item for item in review.issues))
 
     def test_report_image_agent_does_not_include_time_suffix_in_person_name(self):
-        workflow = CaseWorkflow.demo()
+        workflow = _workflow_with_facts({"R1": [semantic_fact(actor="张三", predicate="presence", behavior="记录显示张三在现场", declarant="张三", evidence_category="report_image")]})
         material = Material(
             material_id="R1",
             material_type=MaterialType.REPORT_IMAGE,
@@ -163,7 +184,10 @@ class CaseWorkflowTests(unittest.TestCase):
         self.assertIn("external_qwen_result", workflow.model_profiles.vision.input_mode)
 
     def test_judge_challenges_high_conflict_before_review(self):
-        workflow = CaseWorkflow.demo()
+        workflow = _workflow_with_facts({
+            "S1": [semantic_fact(actor="张三", predicate="presence", behavior="张三称其不在现场", stance="deny", object="现场")],
+            "R1": [semantic_fact(actor="张三", predicate="presence", behavior="记录显示张三在现场", stance="affirm", object="现场", evidence_category="report_image")],
+        })
         materials = [
             Material("S1", MaterialType.STATEMENT, "张三称20时在家。"),
             Material("R1", MaterialType.REPORT_IMAGE, "监控研判报告：20时05分张三出现在现场附近。签章清晰。"),

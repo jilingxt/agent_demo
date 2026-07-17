@@ -8,7 +8,6 @@ from pathlib import Path
 from typing import Any
 
 from case_agent_demo.evidence_intake import EvidenceIntake, ensure_evidence_vault
-from case_agent_demo.config import ModelProfiles
 from case_agent_demo.models import Material, MaterialType
 from case_agent_demo.vision_tools import QwenImageEvidenceTool
 from case_agent_demo.workflow import CaseWorkflow
@@ -53,8 +52,8 @@ def main() -> None:
     parser.add_argument("--sample", action="store_true", help="Run with built-in sample materials.")
     parser.add_argument(
         "--case-type",
-        default="盗窃类案件",
-        help="Human-confirmed case type for demo execution.",
+        default="",
+        help="Optional human-confirmed case type override; automatic evidence analysis is the default.",
     )
     parser.add_argument(
         "--evidence-dir",
@@ -78,7 +77,7 @@ def main() -> None:
         print(f"Evidence vault initialized: {root}")
         return
 
-    workflow = CaseWorkflow(model_profiles=ModelProfiles.from_runtime_config())
+    workflow = CaseWorkflow.from_runtime_config()
     if should_enable_qwen_vision(args):
         attach_qwen_vision_tool(workflow)
     materials = _load_materials(args)
@@ -99,6 +98,8 @@ def main() -> None:
     print(result.final_report)
     print("\n=== Review ===")
     print(json.dumps(result.review, ensure_ascii=False, indent=2, default=_json_default))
+    print("\n=== Evidence Book ===")
+    print(json.dumps(result.evidence_book, ensure_ascii=False, indent=2, default=_json_default))
 
 
 if __name__ == "__main__":

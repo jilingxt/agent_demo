@@ -137,6 +137,46 @@ class EvidenceIntakeTests(unittest.TestCase):
 
             self.assertEqual(materials[0].content, "张三称20时在家。")
 
+    def test_does_not_infer_source_roles_from_filenames_or_content(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "evidence_vault"
+            ensure_evidence_vault(root)
+            (root / "statements" / "报警人陈某笔录.txt").write_text(
+                "报警人陈某称周某实施相关行为。", encoding="utf-8"
+            )
+            (root / "statements" / "证人王某证言.txt").write_text(
+                "证人王某称看见相关情况。", encoding="utf-8"
+            )
+            (root / "identification_images" / "照片辨认.jpg").write_bytes(b"image")
+
+            materials = EvidenceIntake(root).load_materials()
+            by_id = {item.material_id: item for item in materials}
+
+            self.assertEqual(
+                by_id["S-报警人陈某笔录"].metadata["declarant_role"],
+                "",
+            )
+            self.assertEqual(
+                by_id["S-证人王某证言"].metadata["declarant_role"],
+                "",
+            )
+            self.assertEqual(
+                by_id["P-照片辨认"].metadata["evidence_category"],
+                "identification",
+            )
+
+    def test_does_not_infer_report_category_from_report_text(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "evidence_vault"
+            ensure_evidence_vault(root)
+            (root / "report_images" / "材料.txt").write_text(
+                "文本包含法医、监控、银行流水等词语。", encoding="utf-8"
+            )
+
+            materials = EvidenceIntake(root).load_materials()
+
+            self.assertEqual(materials[0].metadata["evidence_category"], "report_material")
+
 
 if __name__ == "__main__":
     unittest.main()

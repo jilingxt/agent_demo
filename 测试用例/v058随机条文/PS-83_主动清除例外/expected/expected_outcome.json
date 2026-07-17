@@ -1,0 +1,32 @@
+{
+  "case_id": "PS-83",
+  "expected_abstention": true,
+  "expected_bayesian_models": [],
+  "forbidden_claims": [],
+  "forbidden_final_conclusions": [
+    "已构成犯罪",
+    "已构成违法",
+    "应当处罚",
+    "应判处"
+  ],
+  "required_claims": [
+    {
+      "actor": "测试种植者甲",
+      "object": "待鉴别植物A",
+      "predicate": "cultivation_conduct",
+      "status": "supported"
+    },
+    {
+      "actor": "测试种植者甲",
+      "object": "待鉴别植物A",
+      "predicate": "voluntary_removal",
+      "status": "supported"
+    }
+  ],
+  "required_issue_types": [],
+  "required_legal_articles": [
+    "第八十三条"
+  ],
+  "schema_version": "0.58",
+  "synthetic_notice": "合成测试材料，仅用于系统验证，不对应真实人员、单位或案件"
+}

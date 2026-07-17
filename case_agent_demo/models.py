@@ -15,6 +15,8 @@ EDGE_TYPE_SUPPORTS = "supports"
 EDGE_TYPE_CONTRADICTS = "contradicts"
 EDGE_TYPE_NEEDS_HUMAN_CHECK = "needs_human_check"
 
+UNRESOLVED_PREDICATE = "unresolved_observation"
+
 
 class MaterialType(StrEnum):
     STATEMENT = "statement"
@@ -28,6 +30,7 @@ class Material:
     material_type: MaterialType
     content: str
     source_path: str = ""
+    metadata: dict = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -48,6 +51,7 @@ class Fact:
     object: str = ""
     confidence: float = 0.8
     human_confirmed: bool = False
+    metadata: dict = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -63,8 +67,8 @@ class EvidenceNode:
     location: str = ""
     object: str = ""
     confidence: float = 0.8
-    polarity: str = "affirm"
-    claim_type: str = ""
+    polarity: str = "ambiguous"
+    claim_type: str = UNRESOLVED_PREDICATE
     source_party: str = "unknown"
     observation_type: str = ""
     status: str = "active"
@@ -115,6 +119,166 @@ class EvidenceClaim:
     confidence_profile: ConfidenceProfile | None = None
     status: str = "active"
     metadata: dict = field(default_factory=dict)
+    target_person: str = ""
+    event_id: str = ""
+    assertion_ids: list[str] = field(default_factory=list)
+    ambiguous_node_ids: list[str] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class EvidenceAssertion:
+    assertion_id: str
+    node_id: str
+    declarant: str = ""
+    actor: str = ""
+    predicate: str = "general"
+    target_person: str = ""
+    object: str = ""
+    event_id: str = ""
+    stance: str = "ambiguous"
+    modality: str = ""
+    source_group: str = ""
+    origin_evidence: str = ""
+    metadata: dict = field(default_factory=dict)
+    assertion_role: str = "context"
+    time: str = ""
+    location: str = ""
+    evidence_category: str = ""
+    declarant_role: str = ""
+
+
+@dataclass(frozen=True)
+class ClaimOpinion:
+    claim_id: str
+    support: float = 0.0
+    opposition: float = 0.0
+    uncertainty: float = 1.0
+    conflict: float = 0.0
+
+
+@dataclass(frozen=True)
+class AuthorityAssessment:
+    issuer: str = ""
+    document_type: str = ""
+    competence_verified: bool = False
+    authenticity_verified: bool = False
+    procedure_verified: bool = False
+    subject_identity_verified: bool = False
+    method_verified: bool = False
+    standard_verified: bool = False
+    scope_verified: bool = False
+    defeater: bool = False
+    status: str = "unverified"
+    mean: float = 0.0
+    strength: float = 0.0
+    reasons: list[str] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class ClaimAssessment:
+    claim_id: str
+    opinion: ClaimOpinion | None = None
+    status: str = "unassessed"
+    reasons: list[str] = field(default_factory=list)
+    authority_assessments: list[AuthorityAssessment] = field(default_factory=list)
+    support_index: float = 0.0
+    bayesian_posterior: float | None = None
+    bayesian_model_version: str = ""
+
+
+@dataclass(frozen=True)
+class CaseTypeContext:
+    value: str = ""
+    status: str = "unknown"
+    source: str = "automatic"
+    candidates: list[str] = field(default_factory=list)
+    domains: list[str] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class ParticipantRecord:
+    name: str
+    roles: list[str] = field(default_factory=list)
+    assertion_ids: list[str] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class AllegationRecord:
+    allegation_id: str
+    reporter: str
+    alleged_actor: str
+    predicate: str
+    factual_summary: str
+    target_person: str = ""
+    object: str = ""
+    time: str = ""
+    location: str = ""
+    assertion_ids: list[str] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class EvidenceFinding:
+    claim_id: str
+    subject: str
+    predicate: str
+    status: str
+    target_person: str = ""
+    object: str = ""
+    time: str = ""
+    location: str = ""
+    supporting_node_ids: list[str] = field(default_factory=list)
+    opposing_node_ids: list[str] = field(default_factory=list)
+    ambiguous_node_ids: list[str] = field(default_factory=list)
+    support_index: float = 0.0
+    reasons: list[str] = field(default_factory=list)
+    conclusion: str = ""
+
+
+@dataclass(frozen=True)
+class ObjectiveCircumstance:
+    node_id: str
+    source_material_id: str
+    category: str
+    summary: str
+    time: str = ""
+    location: str = ""
+
+
+@dataclass(frozen=True)
+class IdentificationRecord:
+    node_id: str
+    source_material_id: str
+    identifier: str
+    identified_person: str
+    summary: str
+    time: str = ""
+    location: str = ""
+
+
+@dataclass(frozen=True)
+class LegalCandidate:
+    law_id: str
+    law_name: str
+    article: str
+    retrieval_purpose: str
+    candidate_basis: str = ""
+    matched_elements: list[str] = field(default_factory=list)
+    missing_elements: list[str] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class EvidenceBook:
+    participants: list[ParticipantRecord] = field(default_factory=list)
+    allegations: list[AllegationRecord] = field(default_factory=list)
+    fact_findings: list[EvidenceFinding] = field(default_factory=list)
+    objective_circumstances: list[ObjectiveCircumstance] = field(default_factory=list)
+    identifications: list[IdentificationRecord] = field(default_factory=list)
+    conflicts: list[str] = field(default_factory=list)
+    legal_candidates: list[LegalCandidate] = field(default_factory=list)
+    bayesian_runs: list[dict] = field(default_factory=list)
+    bayesian_abstentions: list[dict] = field(default_factory=list)
+    missing_evidence: list[str] = field(default_factory=list)
+    conclusion_boundary: str = ""
 
 
 @dataclass(frozen=True)
@@ -198,6 +362,13 @@ EvidenceGraph = CaseGraph
 
 
 def fact_to_node(fact: Fact) -> EvidenceNode:
+    metadata = dict(fact.metadata)
+    assertions = metadata.get("assertions")
+    first_assertion = (
+        assertions[0]
+        if isinstance(assertions, list) and assertions and isinstance(assertions[0], dict)
+        else {}
+    )
     return EvidenceNode(
         node_id=fact.fact_id,
         node_type=NODE_TYPE_FACT,
@@ -210,10 +381,15 @@ def fact_to_node(fact: Fact) -> EvidenceNode:
         location=fact.location,
         object=fact.object,
         confidence=fact.confidence,
-        polarity=infer_polarity(fact.behavior),
-        claim_type=infer_claim_type(fact.behavior, fact.object),
+        polarity=str(metadata.get("stance") or first_assertion.get("stance") or "ambiguous"),
+        claim_type=str(
+            metadata.get("predicate")
+            or first_assertion.get("predicate")
+            or UNRESOLVED_PREDICATE
+        ),
         observation_type=fact.source_type,
         human_confirmed=fact.human_confirmed,
+        metadata=metadata,
     )
 
 
@@ -229,30 +405,28 @@ def node_to_fact(node: EvidenceNode) -> Fact:
         object=node.object,
         confidence=node.confidence,
         human_confirmed=node.human_confirmed,
+        metadata=dict(node.metadata),
     )
 
 
 def infer_polarity(text: str) -> str:
-    if any(word in text for word in ("疑似", "可能", "不确定", "无法确认")):
-        return "uncertain"
-    if any(word in text for word in ("没有", "未", "否认", "不承认", "没")):
-        return "deny"
-    return "affirm"
+    del text
+    return "ambiguous"
 
 
 def infer_claim_type(behavior: str, obj: str = "") -> str:
-    text = f"{behavior} {obj}"
-    if any(word in text for word in ("打架", "动手", "殴打", "伤害", "抱摔", "推搡", "掐脖子", "拉拽")):
-        return "violence"
-    if any(word in text for word in ("轻伤", "重伤", "骨折", "伤情", "鉴定意见", "损伤")):
-        return "injury_consequence"
-    if any(word in text for word in ("损坏", "毁坏", "砸坏", "摔坏", "破坏")):
-        return "property_damage"
-    if any(word in text for word in ("拿走", "窃取", "盗窃", "非法占有", "拿取", "偷走")):
-        return "taking_property"
-    if any(word in text for word in ("现场", "出现", "在场", "不在", "在家")):
-        return "presence"
-    return "general"
+    predicates = infer_claim_types(behavior, obj)
+    return predicates[0] if predicates else "general"
+
+
+def infer_claim_types(behavior: str, obj: str = "") -> list[str]:
+    del behavior, obj
+    return [UNRESOLVED_PREDICATE]
+
+
+def infer_predicate_stance(text: str, predicate: str) -> str:
+    del text, predicate
+    return "ambiguous"
 
 
 @dataclass(frozen=True)
@@ -309,3 +483,11 @@ class WorkflowResult:
     evidence_graph: CaseGraph | None = None
     material_plan: object | None = None
     validation_issues: list[object] = field(default_factory=list)
+    assertions: list[EvidenceAssertion] = field(default_factory=list)
+    claim_assessments: list[ClaimAssessment] = field(default_factory=list)
+    bayesian_result: dict | None = None
+    reasoning_trace: dict = field(default_factory=dict)
+    model_versions: dict = field(default_factory=dict)
+    case_type_context: CaseTypeContext = field(default_factory=CaseTypeContext)
+    evidence_book: EvidenceBook | None = None
+    inferred_case_domains: list[str] = field(default_factory=list)

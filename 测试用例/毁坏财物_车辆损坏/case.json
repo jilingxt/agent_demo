@@ -1,0 +1,18 @@
+{
+  "case_id": "CASE-DAMAGE-001",
+  "case_type": "故意毁坏财物类案件",
+  "materials": [
+    {"material_id": "DAMAGE-S-OWNER", "material_type": "statement", "path": "statements/权利人笔录.txt"},
+    {"material_id": "DAMAGE-S-ACTOR", "material_type": "statement", "path": "statements/行为人笔录.txt"},
+    {"material_id": "DAMAGE-R-VIDEO", "material_type": "report_image", "path": "reports/监控研判报告.txt"},
+    {"material_id": "DAMAGE-R-REPAIR", "material_type": "report_image", "path": "reports/维修检测报告.txt"}
+  ],
+  "expected": {
+    "bayesian_models": ["conduct_result"],
+    "bayesian_run_count": 1,
+    "derived_min": {"causation": 0.5},
+    "primary_claim": {"subject": "周强", "predicate": "property_damage", "target": "车辆", "min_sources": 3, "status": "supported"},
+    "must_include_articles": ["第二百七十五条", "第五十九条"],
+    "must_exclude_articles": ["第二百六十四条", "第五十八条", "第二百九十三条", "第三十条"]
+  }
+}

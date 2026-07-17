@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import Any, Callable, TypeVar
 
 from case_agent_demo.config import ModelProfile
+from case_agent_demo.llm_clients import ModelApiError
 from case_agent_demo.prompt_config import PromptLoader
 
 
@@ -42,7 +43,7 @@ class AgentRuntime:
             content = _extract_message_content(response)
             data = json.loads(_strip_json_fence(content))
             return parser(data)
-        except (KeyError, TypeError, ValueError, json.JSONDecodeError):
+        except (KeyError, TypeError, ValueError, json.JSONDecodeError, ModelApiError):
             return fallback()
 
 

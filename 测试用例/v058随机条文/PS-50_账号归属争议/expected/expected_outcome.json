@@ -1,0 +1,33 @@
+{
+  "case_id": "PS-50",
+  "expected_abstention": true,
+  "expected_bayesian_models": [],
+  "forbidden_claims": [],
+  "forbidden_final_conclusions": [
+    "已构成犯罪",
+    "已构成违法",
+    "应当处罚",
+    "应判处"
+  ],
+  "required_claims": [
+    {
+      "actor": "测试账号A",
+      "predicate": "threatening_message",
+      "status": "supported",
+      "target_person": "测试人员辛"
+    },
+    {
+      "actor": "测试人员庚",
+      "predicate": "sender_attribution",
+      "status": "opposing_dominant"
+    }
+  ],
+  "required_issue_types": [
+    "actor_attribution_gap"
+  ],
+  "required_legal_articles": [
+    "第五十条"
+  ],
+  "schema_version": "0.58",
+  "synthetic_notice": "合成测试材料，仅用于系统验证，不对应真实人员、单位或案件"
+}

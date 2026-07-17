@@ -1,0 +1,32 @@
+{
+  "model_id": "property_taking",
+  "version": "1",
+  "calibration_status": "expert_prior_unvalidated",
+  "query_nodes": ["taking_supported"],
+  "nodes": [
+    {"id": "prior_possession", "type": "prior", "prior": 0.20},
+    {"id": "taking_action", "type": "prior", "prior": 0.10},
+    {"id": "possession_transfer", "type": "prior", "prior": 0.10},
+    {"id": "property_trace", "type": "prior", "prior": 0.20},
+    {"id": "alternative_explanation", "type": "prior", "prior": 0.20},
+    {
+      "id": "taking_supported",
+      "type": "logistic",
+      "parents": [
+        "prior_possession",
+        "taking_action",
+        "possession_transfer",
+        "property_trace",
+        "alternative_explanation"
+      ],
+      "intercept": -3.0,
+      "weights": {
+        "prior_possession": 0.7,
+        "taking_action": 2.0,
+        "possession_transfer": 1.5,
+        "property_trace": 1.0,
+        "alternative_explanation": -2.0
+      }
+    }
+  ]
+}

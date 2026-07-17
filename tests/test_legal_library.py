@@ -54,7 +54,7 @@ class StaticLegalLibraryTests(unittest.TestCase):
             self.assertIn("非法占有目的", matches[0].legal_element)
             self.assertIn("static_law_library", matches[0].source)
 
-    def test_falls_back_to_demo_law_when_library_has_no_match(self):
+    def test_returns_retrieval_miss_when_library_has_no_match(self):
         with tempfile.TemporaryDirectory() as tmp:
             library_path = Path(tmp) / "laws.jsonl"
             library_path.write_text(
@@ -74,10 +74,13 @@ class StaticLegalLibraryTests(unittest.TestCase):
             )
             tool = LegalRetrievalTool(library_path=library_path)
 
-            matches = tool.retrieve({"confirmed_case_type": "盗窃类案件", "behaviors": ["拿走手机"]})
+            result = tool.retrieve_result(
+                {"confirmed_case_type": "盗窃类案件", "behaviors": ["拿走手机"]}
+            )
 
-            self.assertEqual(matches[0].law_id, "L-DEMO-1")
-            self.assertIn("demo", matches[0].source)
+            self.assertEqual(result.matches, [])
+            self.assertEqual(result.chunks, [])
+            self.assertTrue(result.query_trace["retrieval_miss"])
 
     def test_does_not_match_theft_only_because_phone_was_damaged(self):
         with tempfile.TemporaryDirectory() as tmp:

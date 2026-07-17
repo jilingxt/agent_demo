@@ -1,0 +1,32 @@
+{
+  "model_id": "deception_disposition",
+  "version": "1.0.0",
+  "calibration_status": "expert_prior_unvalidated",
+  "query_nodes": ["disposition_link"],
+  "nodes": [
+    {"id": "deceptive_representation", "type": "prior", "prior": 0.2},
+    {"id": "mistaken_belief", "type": "prior", "prior": 0.2},
+    {"id": "property_disposition", "type": "prior", "prior": 0.2},
+    {"id": "property_loss", "type": "prior", "prior": 0.2},
+    {"id": "alternative_explanation", "type": "prior", "prior": 0.2},
+    {
+      "id": "disposition_link",
+      "type": "logistic",
+      "parents": [
+        "deceptive_representation",
+        "mistaken_belief",
+        "property_disposition",
+        "property_loss",
+        "alternative_explanation"
+      ],
+      "intercept": -2.4,
+      "weights": {
+        "deceptive_representation": 1.4,
+        "mistaken_belief": 1.2,
+        "property_disposition": 1.4,
+        "property_loss": 0.8,
+        "alternative_explanation": -1.6
+      }
+    }
+  ]
+}

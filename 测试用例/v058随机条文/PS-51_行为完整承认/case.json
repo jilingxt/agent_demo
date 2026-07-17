@@ -1,0 +1,44 @@
+{
+  "article": "第五十一条",
+  "authority_verifications": [],
+  "case_id": "PS-51",
+  "case_type": "人身行为线索",
+  "complexity_type": "full_admission",
+  "law_key": "public_security_law",
+  "law_title": "中华人民共和国治安管理处罚法",
+  "materials": [
+    {
+      "material_id": "M-PS-51-S1",
+      "material_type": "statement",
+      "path": "statements/测试人员丁笔录.docx",
+      "role": "reporting_party",
+      "title": "相关人员询问笔录"
+    },
+    {
+      "material_id": "M-PS-51-S2",
+      "material_type": "statement",
+      "path": "statements/测试人员丙笔录.docx",
+      "role": "alleged_actor",
+      "title": "行为人询问笔录"
+    },
+    {
+      "material_id": "M-PS-51-S3",
+      "material_type": "statement",
+      "path": "statements/测试见证人甲笔录.docx",
+      "role": "witness",
+      "title": "见证人员询问笔录"
+    },
+    {
+      "material_id": "M-PS-51-R1",
+      "material_type": "report_image",
+      "path": "reports/现场检查报告.docx",
+      "role": "synthetic_report",
+      "title": "现场检查与就诊记录核查报告"
+    }
+  ],
+  "provision_text": "第五十一条 殴打他人的，或者故意伤害他人身体的，处五日以上十日以下拘留，并处五百元\n以上一千元以下罚款；情节较轻的，处五日以下拘留或者一千元以下罚款。\n有下列情形之一的，处十日以上十五日以下拘留，并处一千元以上二千元以下罚款：\n（一）结伙殴打、伤害他人的；\n（二）殴打、伤害残疾人、孕妇、不满十四周岁的人或者七十周岁以上的人的；\n（三）多次殴打、伤害他人或者一次殴打、伤害多人的。",
+  "schema_version": "0.58",
+  "short_name": "行为完整承认",
+  "summary": "行为人完整承认，另有独立目击和检查记录形成多源支持，但系统不自动决定违法或处罚。",
+  "synthetic_notice": "合成测试材料，仅用于系统验证，不对应真实人员、单位或案件"
+}

@@ -5,59 +5,54 @@ from case_agent_demo.models import CaseGraph, Fact
 
 
 class GeneralConflictAgentTests(unittest.TestCase):
-    def test_detects_denied_violence_against_injury_report(self):
+    def test_different_predicates_do_not_form_a_direct_conflict(self):
         graph = CaseGraph(
             facts=[
-                Fact("F1", "S-li", "statement", "李文杰", "李文杰称双方没有打架、没有动手", object="贺显作"),
+                Fact("F1", "S-li", "statement", "李文杰", "行为否认", object="贺显作", metadata={"assertions": [{"actor": "李文杰", "target_person": "贺显作", "predicate": "violence", "stance": "deny"}]}),
                 Fact(
                     "F2",
                     "R-injury",
                     "report_image",
                     "贺显作",
                     "法医鉴定报告认定贺显作所受损伤为轻伤二级、鼻骨骨折",
-                    object="贺显作 轻伤二级、鼻骨骨折",
+                    object="贺显作 轻伤二级、鼻骨骨折", metadata={"assertions": [{"actor": "贺显作", "target_person": "贺显作", "predicate": "injury_grade", "stance": "affirm"}]},
                 ),
             ]
         )
 
         conflicts = ConflictAgent().detect(graph)
 
-        self.assertTrue(any(item.conflict_type == "denial_vs_consequence" for item in conflicts))
-        self.assertEqual(conflicts[0].severity, "high")
-        self.assertIn("没有打架", conflicts[0].claim_a)
-        self.assertIn("轻伤二级", conflicts[0].claim_b)
+        self.assertEqual(conflicts, [])
 
     def test_detects_denied_taking_against_property_taken(self):
         graph = CaseGraph(
             facts=[
-                Fact("F1", "S1", "statement", "张三", "张三称没有拿手机", object="手机"),
-                Fact("F2", "P1", "evidence_image", "张三", "监控显示张三拿走手机", object="手机"),
+                Fact("F1", "S1", "statement", "张三", "否认拿取", object="手机", metadata={"assertions": [{"actor": "张三", "object": "手机", "predicate": "taking_property", "stance": "deny"}]}),
+                Fact("F2", "P1", "evidence_image", "张三", "记录拿取", object="手机", metadata={"assertions": [{"actor": "张三", "object": "手机", "predicate": "taking_property", "stance": "affirm"}]}),
             ]
         )
 
         conflicts = ConflictAgent().detect(graph)
 
         self.assertTrue(any(item.conflict_type == "direct_fact_contradiction" for item in conflicts))
-        self.assertTrue(any("手机" in item.claim_a + item.claim_b for item in conflicts))
 
     def test_detects_denied_property_damage_against_damaged_object(self):
         graph = CaseGraph(
             facts=[
-                Fact("F1", "S1", "statement", "王五", "王五称没有损坏门锁", object="门锁"),
-                Fact("F2", "P1", "evidence_image", "未识别人员", "现场照片显示门锁损坏", object="门锁"),
+                Fact("F1", "S1", "statement", "王五", "否认损坏", object="门锁", metadata={"assertions": [{"actor": "王五", "object": "门锁", "predicate": "property_damage", "stance": "deny"}]}),
+                Fact("F2", "P1", "evidence_image", "王五", "记录损坏", object="门锁", metadata={"assertions": [{"actor": "王五", "object": "门锁", "predicate": "property_damage", "stance": "affirm"}]}),
             ]
         )
 
         conflicts = ConflictAgent().detect(graph)
 
         self.assertTrue(any(item.conflict_type == "direct_fact_contradiction" for item in conflicts))
-        self.assertTrue(any("门锁" in item.claim_a + item.claim_b for item in conflicts))
 
     def test_judge_and_reasoning_surface_general_high_conflict(self):
         graph = CaseGraph(
             facts=[
-                Fact("F1", "S-li", "statement", "李文杰", "李文杰称双方没有打架", object="贺显作"),
-                Fact("F2", "R-injury", "report_image", "贺显作", "鉴定意见显示贺显作轻伤二级", object="贺显作 轻伤二级"),
+                Fact("F1", "S-li", "statement", "李文杰", "否认行为", object="贺显作", metadata={"assertions": [{"actor": "李文杰", "target_person": "贺显作", "predicate": "violence", "stance": "deny"}]}),
+                Fact("F2", "R-video", "report_image", "李文杰", "记录行为", object="贺显作", metadata={"assertions": [{"actor": "李文杰", "target_person": "贺显作", "predicate": "violence", "stance": "affirm"}]}),
             ]
         )
         conflicts = ConflictAgent().detect(graph)
@@ -71,7 +66,7 @@ class GeneralConflictAgentTests(unittest.TestCase):
         )
         challenges = JudgeAgent().challenge({"draft_report": report, "conflicts": conflicts, "legal_matches": ["L1"]})
 
-        self.assertIn("denial_vs_consequence", report)
+        self.assertIn("direct_fact_contradiction", report)
         self.assertTrue(any(item.challenge_type == "unresolved_conflict" for item in challenges))
 
 
